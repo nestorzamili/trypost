@@ -1,0 +1,33 @@
+name: Deploy TryPost
+
+on:
+  push:
+    branches:
+      - samunu
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trypost-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    uses: nestorzamili/gha-workflows/.github/workflows/deploy-compose.yml@v1.6.0
+    with:
+      image-name: trypost
+      compose-project-name: trypost
+      compose-file: compose.prod.yaml
+      compose-remote-directory: /opt/trypost
+      remote-compose-override-file: compose.prod.override.yaml
+      compose-services: app
+      compose-image-service: app
+      compose-health-service: app
+      compose-health-command: "curl -fsS http://127.0.0.1/up"
+      environment: production
+      dockerfile: ./docker/Dockerfile
+      build-env-path: .env.production
+    secrets: inherit
