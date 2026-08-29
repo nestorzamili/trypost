@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Ai\Agents\PostContentStreamer;
 use App\Models\Workspace;
+use App\Support\ResolvedBrand;
 
 it('uses the active language variant in streamed content instructions', function () {
     $workspace = Workspace::factory()->make([
@@ -11,7 +12,7 @@ it('uses the active language variant in streamed content instructions', function
         'brand_guidelines' => 'Human first.',
     ]);
 
-    $brand = new \App\Support\ResolvedBrand(
+    $brand = new ResolvedBrand(
         languageCode: 'zh',
         variantId: 'variant-id',
         variantLabel: 'Chinese Content',

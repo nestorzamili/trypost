@@ -148,7 +148,6 @@ class AiImageClient
     }
 
     /**
-     * @param  mixed  $palette
      * @return array<string, string>
      */
     private function cleanExtendedPalette(mixed $palette): array
@@ -176,7 +175,6 @@ class AiImageClient
     }
 
     /**
-     * @param  mixed  $typography
      * @return array<string, string>
      */
     private function cleanTypography(mixed $typography): array

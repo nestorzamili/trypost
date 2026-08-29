@@ -2,6 +2,7 @@ import type { Node } from '@vue-flow/core';
 import type { Ref } from 'vue';
 
 import type { Command } from '../types';
+
 import { RemoveNodeCommand } from './RemoveNodeCommand';
 
 export class AddNodeCommand implements Command {

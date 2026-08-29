@@ -153,7 +153,6 @@ final readonly class ResolvedBrand
     }
 
     /**
-     * @param  mixed  $colors
      * @return array<string, string>
      */
     private static function normalizeColors(mixed $colors): array

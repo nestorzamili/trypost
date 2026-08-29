@@ -124,7 +124,6 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   height: int,
      *   brand_snapshot: array<string, mixed>|null
      * }  $baseContext
-     * @param  ResolvedBrand  $brand
      * @return array{
      *   title: string,
      *   body: string,
@@ -158,13 +157,13 @@ class RegeneratePostMediaImage implements ShouldQueue
             model: (string) $response->meta->model,
             userId: $this->userId,
             postId: $post->id,
-             metadata: [
-                 'agent' => 'post_image_regenerator',
-                 'content_language' => $brand->languageCode,
-                 'brand_variant_id' => $brand->variantId,
-                 'brand_variant_language' => $brand->languageCode,
-                 'has_brand_variant' => $brand->hasVariant,
-             ],
+            metadata: [
+                'agent' => 'post_image_regenerator',
+                'content_language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'brand_variant_language' => $brand->languageCode,
+                'has_brand_variant' => $brand->hasVariant,
+            ],
         );
 
         return $this->mergeStructuredCopy($baseContext, $response->structured ?? []);
@@ -229,7 +228,6 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   height: int,
      *   brand_snapshot: array<string, mixed>|null
      * }  $baseContext
-     * @param  ResolvedBrand  $brand
      * @return array{path: string, source_meta: array<string, mixed>}
      */
     private function renderRegeneratedImage(
