@@ -149,6 +149,34 @@ test('generate appends brand palette when workspace colours are provided', funct
         && $prompt->contains('in-scene typography'));
 });
 
+test('generate includes an extended brand palette and visual guidance in the prompt', function () {
+    Image::fake();
+
+    $client = new AiImageClient;
+    $client->generate(
+        ['trainer', 'laptop'],
+        ImageStyle::Cinematic,
+        language: 'zh',
+        brandColor: '#D6A928',
+        backgroundColor: '#F7F3EA',
+        textColor: '#292723',
+        brandDescription: 'A trusted practical mentor.',
+        extendedPalette: [
+            'Warm Ivory' => '#F7F3EA',
+            'Soft Mustard' => '#D6A928',
+            'Warm Charcoal' => '#292723',
+        ],
+        visualNotes: 'Use refined editorial Traditional Chinese composition.',
+        brandGuidelines: 'Human first, technology second.',
+    );
+
+    Image::assertGenerated(fn (ImagePrompt $prompt) => $prompt->contains('Warm Ivory')
+        && $prompt->contains('#D6A928')
+        && $prompt->contains('Traditional Chinese')
+        && $prompt->contains('Human first, technology second.')
+        && $prompt->contains('Chinese'));
+});
+
 test('generate omits brand palette when no workspace colours are set', function () {
     Image::fake();
 

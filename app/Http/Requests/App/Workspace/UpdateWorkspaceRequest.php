@@ -26,6 +26,7 @@ class UpdateWorkspaceRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'brand_website' => ['nullable', 'url', 'max:255'],
             'brand_description' => ['nullable', 'string', 'max:2000'],
+            'brand_guidelines' => ['nullable', 'string', 'max:5000'],
             'brand_voice_traits' => ['nullable', 'array'],
             'brand_voice_traits.*' => ['string', Rule::enum(BrandVoiceTrait::class)],
             'brand_color' => $hex,

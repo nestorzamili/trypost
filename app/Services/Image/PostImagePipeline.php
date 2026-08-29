@@ -9,6 +9,7 @@ use App\Enums\Media\Type as MediaType;
 use App\Enums\PostPlatform\ContentType;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
+use App\Support\ResolvedBrand;
 use Illuminate\Support\Facades\Storage;
 
 class PostImagePipeline
@@ -25,7 +26,7 @@ class PostImagePipeline
      * @param  array<string, mixed>  $structured
      * @return array<int, array<string, mixed>>
      */
-    public function forSingle(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true): array
+    public function forSingle(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true, ?ResolvedBrand $brand = null): array
     {
         ['width' => $width, 'height' => $height] = $this->dimensionsForContentType($contentType);
 
@@ -38,6 +39,7 @@ class PostImagePipeline
             width: $width,
             height: $height,
             applyBrandVisuals: $applyBrandVisuals,
+            brand: $brand,
         );
 
         if (! $rendered) {
@@ -54,7 +56,7 @@ class PostImagePipeline
      * @param  array<string, mixed>  $structured
      * @return array<int, array<string, mixed>>
      */
-    public function forCarousel(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true): array
+    public function forCarousel(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true, ?ResolvedBrand $brand = null): array
     {
         ['width' => $width, 'height' => $height] = $this->dimensionsForContentType($contentType);
 
@@ -70,6 +72,7 @@ class PostImagePipeline
                 width: $width,
                 height: $height,
                 applyBrandVisuals: $applyBrandVisuals,
+                brand: $brand,
             );
 
             if ($rendered) {
@@ -90,9 +93,15 @@ class PostImagePipeline
      * @param  array<int, string>|null  $imageKeywords
      * @return array<int, array<string, mixed>>
      */
-    public function forTweetCard(Workspace $workspace, SocialAccount $account, string $tweetText, ?array $imageKeywords = null): array
+    public function forTweetCard(Workspace $workspace, SocialAccount $account, string $tweetText, ?array $imageKeywords = null, ?ResolvedBrand $brand = null): array
     {
-        $rendered = $this->generator->renderTweetCard($workspace, $account, $tweetText, $imageKeywords);
+        $rendered = $this->generator->renderTweetCard(
+            workspace: $workspace,
+            socialAccount: $account,
+            tweetText: $tweetText,
+            imageKeywords: $imageKeywords,
+            brand: $brand,
+        );
 
         if (! $rendered) {
             return [];
@@ -111,7 +120,7 @@ class PostImagePipeline
      * @param  array<int, string|array<string, mixed>>  $slides
      * @return array<int, array<string, mixed>>
      */
-    public function forTweetCardCarousel(Workspace $workspace, SocialAccount $account, array $slides): array
+    public function forTweetCardCarousel(Workspace $workspace, SocialAccount $account, array $slides, ?ResolvedBrand $brand = null): array
     {
         $media = [];
 
@@ -124,7 +133,13 @@ class PostImagePipeline
                 $imageKeywords = data_get($slide, 'image_keywords');
             }
 
-            $rendered = $this->generator->renderTweetCard($workspace, $account, $tweetText, $imageKeywords);
+            $rendered = $this->generator->renderTweetCard(
+                workspace: $workspace,
+                socialAccount: $account,
+                tweetText: $tweetText,
+                imageKeywords: $imageKeywords,
+                brand: $brand,
+            );
 
             if ($rendered) {
                 $media[] = $this->buildAiMediaItem($workspace, $rendered);

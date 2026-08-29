@@ -8,6 +8,7 @@ use App\Ai\Agents\PostContentReviewer;
 use App\Http\Requests\App\Ai\ReviewPostContentRequest;
 use App\Models\Post;
 use App\Services\Ai\RecordAiUsage;
+use App\Support\ResolvedBrand;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,7 +26,8 @@ class PostAiReviewController extends Controller
             return response()->json(['message' => $gate->message()], Response::HTTP_PAYMENT_REQUIRED);
         }
 
-        $agent = new PostContentReviewer(workspace: $workspace);
+        $brand = $workspace->resolvedBrand();
+        $agent = new PostContentReviewer(workspace: $workspace, brand: $brand);
         $result = $agent->prompt($request->string('content')->toString());
 
         RecordAiUsage::recordText(
@@ -36,7 +38,13 @@ class PostAiReviewController extends Controller
             model: (string) $result->meta->model,
             userId: $request->user()->id,
             postId: $post->id,
-            metadata: ['agent' => 'post_reviewer'],
+            metadata: [
+                'agent' => 'post_reviewer',
+                'content_language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'brand_variant_language' => $brand->hasVariant ? $brand->languageCode : null,
+                'has_brand_variant' => $brand->hasVariant,
+            ],
         );
 
         return response()->json([

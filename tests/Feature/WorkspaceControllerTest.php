@@ -116,6 +116,20 @@ test('store workspace creates second workspace in self-hosted mode', function ()
     ]);
 });
 
+test('store workspace persists brand guidelines', function () {
+    config(['trypost.self_hosted' => true]);
+
+    $this->actingAs($this->user)->post(route('app.workspaces.store'), [
+        'name' => 'Guided Workspace',
+        'brand_guidelines' => 'Question, explanation, practical application, takeaway.',
+    ])->assertRedirect(route('app.accounts'));
+
+    $workspace = Workspace::query()->where('name', 'Guided Workspace')->firstOrFail();
+
+    expect($workspace->brand_guidelines)
+        ->toBe('Question, explanation, practical application, takeaway.');
+});
+
 test('store workspace validates name is required', function () {
     $response = $this->actingAs($this->user)->post(route('app.workspaces.store'), [
         'name' => '',
@@ -361,6 +375,18 @@ test('update workspace settings persists brand voice traits', function () {
         ])->assertRedirect(route('app.workspace.brand'));
 
     expect($this->workspace->refresh()->brand_voice_traits)->toBe(['third_person', 'no_hype', 'data_driven']);
+});
+
+test('workspace settings persist brand guidelines', function () {
+    $this->actingAs($this->user)
+        ->from(route('app.workspace.brand'))
+        ->put(route('app.workspace.settings.update'), [
+            'name' => $this->workspace->name,
+            'brand_guidelines' => 'Question, explanation, practical application, takeaway.',
+        ])->assertRedirect(route('app.workspace.brand'));
+
+    expect($this->workspace->refresh()->brand_guidelines)
+        ->toBe('Question, explanation, practical application, takeaway.');
 });
 
 test('update workspace settings rejects an unknown brand voice trait', function () {

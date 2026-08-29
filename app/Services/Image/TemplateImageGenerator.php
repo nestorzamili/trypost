@@ -9,6 +9,7 @@ use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Services\Ai\AiImageClient;
 use App\Services\Ai\RecordAiUsage;
+use App\Support\ResolvedBrand;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -52,6 +53,7 @@ class TemplateImageGenerator
         int $height = self::DEFAULT_HEIGHT,
         ?string $backgroundPath = null,
         bool $applyBrandVisuals = true,
+        ?ResolvedBrand $brand = null,
     ): ?array {
         $this->width = $width;
         $this->height = $height;
@@ -63,15 +65,16 @@ class TemplateImageGenerator
             is_string($rawStyle) => ImageStyle::tryFrom($rawStyle) ?? ImageStyle::DEFAULT,
             default => ImageStyle::DEFAULT,
         };
-        $language = $workspace->content_language;
+        $brand = $brand ?? $workspace->resolvedBrand();
+        $language = $brand->languageCode;
 
-        // When brand visuals are off (e.g. faithful curation), the AI background
-        // is generated without brand colours or identity — neutral imagery driven
-        // only by the post's own keywords.
-        $brandColor = $applyBrandVisuals ? $workspace->brand_color : null;
-        $backgroundColor = $applyBrandVisuals ? $workspace->background_color : null;
-        $textColor = $applyBrandVisuals ? $workspace->text_color : null;
-        $brandDescription = $applyBrandVisuals ? $workspace->brand_description : null;
+        $brandColor = $applyBrandVisuals ? ($brand->brandColor ?: null) : null;
+        $backgroundColor = $applyBrandVisuals ? ($brand->backgroundColor ?: null) : null;
+        $textColor = $applyBrandVisuals ? ($brand->textColor ?: null) : null;
+        $brandDescription = $applyBrandVisuals ? ($brand->brandDescription ?: null) : null;
+        $extendedPalette = $applyBrandVisuals && $brand->hasVariant ? $brand->colors : [];
+        $visualNotes = $applyBrandVisuals ? ($brand->visualNotes ?: null) : null;
+        $brandGuidelines = $applyBrandVisuals ? ($brand->brandGuidelines ?: null) : null;
 
         $generatedNewBackground = false;
         $resolvedBackgroundPath = null;
@@ -94,6 +97,9 @@ class TemplateImageGenerator
                 backgroundColor: $backgroundColor,
                 textColor: $textColor,
                 brandDescription: $brandDescription,
+                extendedPalette: $extendedPalette,
+                visualNotes: $visualNotes,
+                brandGuidelines: $brandGuidelines,
             );
 
             if ($generated === null) {
@@ -125,6 +131,10 @@ class TemplateImageGenerator
                     'image_style' => $imageStyle->value,
                     'width' => $this->width,
                     'height' => $this->height,
+                    'language' => $brand->languageCode,
+                    'brand_variant_id' => $brand->variantId,
+                    'brand_variant_language' => $brand->hasVariant ? $brand->languageCode : null,
+                    'has_brand_variant' => $brand->hasVariant,
                 ],
             );
         }
@@ -135,6 +145,10 @@ class TemplateImageGenerator
             metadata: [
                 'width' => $this->width,
                 'height' => $this->height,
+                'language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'brand_variant_language' => $brand->languageCode,
+                'has_brand_variant' => $brand->hasVariant,
             ],
         );
 
@@ -153,6 +167,10 @@ class TemplateImageGenerator
                 'background_color' => $backgroundColor,
                 'text_color' => $textColor,
                 'background_path' => $resolvedBackgroundPath,
+                'brand_variant_id' => $applyBrandVisuals && $brand->hasVariant ? $brand->variantId : null,
+                'brand_variant_language' => $applyBrandVisuals && $brand->hasVariant ? $brand->languageCode : null,
+                'has_brand_variant' => $applyBrandVisuals && $brand->hasVariant,
+                'brand_snapshot' => $applyBrandVisuals && $brand->hasVariant ? $brand->toSnapshot() : null,
             ],
         ];
     }
@@ -566,14 +584,20 @@ class TemplateImageGenerator
      * @param  array<int, string>|null  $imageKeywords
      * @return array{path: string, source_meta: array<string, mixed>}|null
      */
-    public function renderTweetCard(Workspace $workspace, SocialAccount $socialAccount, string $tweetText, ?array $imageKeywords = null): ?array
-    {
+    public function renderTweetCard(
+        Workspace $workspace,
+        SocialAccount $socialAccount,
+        string $tweetText,
+        ?array $imageKeywords = null,
+        ?ResolvedBrand $brand = null,
+    ): ?array {
         $this->width = self::DEFAULT_WIDTH;
         $this->height = self::DEFAULT_HEIGHT;
 
         $manager = new ImageManager(Driver::class);
+        $brand = $brand ?? $workspace->resolvedBrand();
 
-        $brandColor = $workspace->brand_color ?? '#1d9bf0';
+        $brandColor = $brand->brandColor ?: '#1d9bf0';
         [$pr, $pg, $pb] = $this->hexToRgb($brandColor);
 
         $canvas = $manager->createImage($this->width, $this->height);
@@ -585,7 +609,7 @@ class TemplateImageGenerator
         $useImageBackground = $imageKeywords !== null && $imageKeywords !== [];
 
         if ($useImageBackground) {
-            $canvas = $this->applyTweetCardImageBackground($manager, $canvas, $core, $workspace, $imageKeywords);
+            $canvas = $this->applyTweetCardImageBackground($manager, $canvas, $core, $workspace, $imageKeywords, $brand);
             $core = $canvas->core()->native();
         } else {
             $pageBg = imagecolorallocate($core, $pr, $pg, $pb);
@@ -605,6 +629,10 @@ class TemplateImageGenerator
                 'template' => $template,
                 'width' => $this->width,
                 'height' => $this->height,
+                'language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'brand_variant_language' => $brand->languageCode,
+                'has_brand_variant' => $brand->hasVariant,
             ],
         );
 
@@ -613,6 +641,12 @@ class TemplateImageGenerator
             'tweet_text' => $tweetText,
             'width' => $this->width,
             'height' => $this->height,
+            'language' => $brand->languageCode,
+            'brand_variant_id' => $brand->variantId,
+            'brand_variant_language' => $brand->languageCode,
+            'has_brand_variant' => $brand->hasVariant,
+            'brand_snapshot' => $brand->toSnapshot(),
+            'brand_color' => $brandColor,
         ];
 
         if ($useImageBackground) {
@@ -637,6 +671,7 @@ class TemplateImageGenerator
         mixed $core,
         Workspace $workspace,
         array $imageKeywords,
+        ResolvedBrand $brand,
     ): ImageInterface {
         $rawStyle = $workspace->image_style;
         $imageStyle = match (true) {
@@ -649,15 +684,24 @@ class TemplateImageGenerator
             keywords: $imageKeywords,
             style: $imageStyle,
             orientation: 'portrait',
-            language: $workspace->content_language,
-            brandColor: $workspace->brand_color,
-            backgroundColor: $workspace->background_color,
-            textColor: $workspace->text_color,
-            brandDescription: $workspace->brand_description,
+            language: $brand->languageCode,
+            brandColor: $brand->brandColor,
+            backgroundColor: $brand->backgroundColor,
+            textColor: $brand->textColor,
+            brandDescription: $brand->brandDescription,
+            extendedPalette: $brand->hasVariant ? $brand->colors : [],
+            visualNotes: $brand->visualNotes,
+            brandGuidelines: $brand->brandGuidelines,
+            typography: [
+                'headline' => $brand->headlineFont,
+                'body' => $brand->bodyFont,
+                'label' => $brand->labelFont,
+                'accent' => $brand->accentFont,
+            ],
         );
 
         if ($generated === null) {
-            $brandColor = $workspace->brand_color ?? '#1d9bf0';
+            $brandColor = $brand->brandColor ?: '#1d9bf0';
             [$pr, $pg, $pb] = $this->hexToRgb($brandColor);
             $pageBg = imagecolorallocate($core, $pr, $pg, $pb);
             imagefill($core, 0, 0, $pageBg);
@@ -673,6 +717,9 @@ class TemplateImageGenerator
                 'image_style' => $imageStyle->value,
                 'width' => $this->width,
                 'height' => $this->height,
+                'language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'has_brand_variant' => $brand->hasVariant,
             ],
         );
 

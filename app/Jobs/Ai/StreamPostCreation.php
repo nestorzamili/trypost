@@ -23,6 +23,7 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Ai\RecordAiUsage;
+use App\Support\ResolvedBrand;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -67,6 +68,7 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
         $isCarousel = $this->format === ContentType::CAROUSEL_FORMAT;
         $agentFormat = $isCarousel ? GeneratorFormat::Carousel : GeneratorFormat::Single;
         $slideCount = $isCarousel && $this->imageCount > 0 ? $this->imageCount : 1;
+        $brand = $workspace->resolvedBrand();
 
         $context = new TemplateContext(
             workspace: $workspace,
@@ -75,6 +77,8 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
             imageCount: $this->imageCount,
             isCarousel: $isCarousel,
             applyBrandVisuals: $this->applyBrandVisuals,
+            languageCode: $brand->languageCode,
+            brand: $brand,
         );
 
         $agent = new PostContentGenerator(
@@ -84,6 +88,7 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
             platformContext: $this->format,
             template: $style,
             templateContext: $context,
+            brand: $brand,
         );
 
         try {
@@ -96,12 +101,20 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
                 provider: (string) $response->meta->provider,
                 model: (string) $response->meta->model,
                 userId: $this->userId,
-                metadata: ['agent' => 'post_generator', 'format' => $this->format],
+                metadata: [
+                    'agent' => 'post_generator',
+                    'format' => $this->format,
+                    'content_language' => $brand->languageCode,
+                    'brand_variant_id' => $brand->variantId,
+                    'brand_variant_language' => $brand->hasVariant ? $brand->languageCode : null,
+                    'has_brand_variant' => $brand->hasVariant,
+                    'apply_brand_visuals' => $this->applyBrandVisuals,
+                ],
             );
 
             $structured = $response->structured ?? [];
 
-            $structured = $this->humanize($workspace, $structured, $agentFormat, $style->style());
+            $structured = $this->humanize($workspace, $structured, $agentFormat, $style->style(), $brand);
 
             $generated = $style->assemble($structured, $context);
             $post = $this->createPostFromGenerated($workspace, $generated, $socialAccount);
@@ -128,7 +141,7 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
      * @param  array<string, mixed>  $structured
      * @return array<string, mixed>
      */
-    private function humanize(Workspace $workspace, array $structured, GeneratorFormat $format, ContentStyle $style): array
+    private function humanize(Workspace $workspace, array $structured, GeneratorFormat $format, ContentStyle $style, ResolvedBrand $brand): array
     {
         if (! $style->humanizes()) {
             return $structured;
@@ -152,7 +165,13 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
                     'image_body' => data_get($structured, 'image_body', ''),
                 ];
 
-            $humanizer = new PostContentHumanizer($workspace, $format, platformContext: $this->format);
+            $humanizer = new PostContentHumanizer(
+                workspace: $workspace,
+                format: $format,
+                platformContext: $this->format,
+                brand: $brand,
+                languageCode: $brand->languageCode,
+            );
             $response = $humanizer->prompt(json_encode($input, JSON_UNESCAPED_UNICODE));
             $humanized = $response->structured ?? [];
 
@@ -163,7 +182,14 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
                 provider: (string) $response->meta->provider,
                 model: (string) $response->meta->model,
                 userId: $this->userId,
-                metadata: ['agent' => 'post_humanizer', 'format' => $format->value],
+                metadata: [
+                    'agent' => 'post_humanizer',
+                    'format' => $format->value,
+                    'content_language' => $brand->languageCode,
+                    'brand_variant_id' => $brand->variantId,
+                    'brand_variant_language' => $brand->hasVariant ? $brand->languageCode : null,
+                    'has_brand_variant' => $brand->hasVariant,
+                ],
             );
         } catch (\Throwable $e) {
             Log::warning('PostContentHumanizer failed, using generator output as-is', [

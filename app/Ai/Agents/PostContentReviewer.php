@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Agents;
 
 use App\Models\Workspace;
+use App\Support\ResolvedBrand;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Contracts\Agent;
@@ -18,14 +19,23 @@ class PostContentReviewer implements Agent, HasStructuredOutput
 
     public function __construct(
         public Workspace $workspace,
+        public ?string $languageCode = null,
+        public ?ResolvedBrand $brand = null,
     ) {}
 
     public function instructions(): string
     {
+        $brand = $this->brand ?? $this->workspace->resolvedBrand($this->languageCode);
+
         return view('prompts.post_content.reviewer', [
             'brand_name' => $this->workspace->name ?? '',
-            'brand_voice_traits' => $this->workspace->brand_voice_traits ?? [],
-            'content_language' => $this->workspace->content_language,
+            'brand_description' => '',
+            'brand_guidelines' => '',
+            'brand_voice_traits' => $brand->brandVoiceTraits,
+            'include_description' => false,
+            'include_voice' => true,
+            'include_visuals' => false,
+            'content_language' => $brand->languageCode,
         ])->render();
     }
 

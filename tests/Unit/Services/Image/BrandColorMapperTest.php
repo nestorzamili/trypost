@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Workspace;
 use App\Services\Image\BrandColorMapper;
+use App\Support\ResolvedBrand;
 
 test('maps primary colors to expected buckets', function (string $hex, string $expected) {
     expect((new BrandColorMapper)->fromHex($hex))->toBe($expected);
@@ -37,6 +38,31 @@ test('fromWorkspace uses brand_color when available', function () {
     $bucket = (new BrandColorMapper)->fromWorkspace($workspace);
 
     expect($bucket)->toBe('red');
+});
+
+test('fromWorkspace uses a resolved variant brand color', function () {
+    $workspace = Workspace::factory()->make([
+        'brand_color' => '#ff0000',
+        'background_color' => '#0000ff',
+    ]);
+    $brand = new ResolvedBrand(
+        languageCode: 'zh',
+        variantId: 'variant-id',
+        variantLabel: 'Chinese Content',
+        hasVariant: true,
+        brandDescription: '',
+        brandVoiceTraits: [],
+        brandGuidelines: '',
+        brandColor: '#00ff00',
+        backgroundColor: '#0000ff',
+        textColor: '#000000',
+        headlineFont: 'Inter',
+        bodyFont: 'Inter',
+        labelFont: 'Inter',
+        accentFont: '',
+    );
+
+    expect((new BrandColorMapper)->fromWorkspace($workspace, $brand))->toBe('green');
 });
 
 test('fromWorkspace falls back to background_color when brand_color is null', function () {

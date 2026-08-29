@@ -33,8 +33,12 @@ class AiImageClient
         ?string $backgroundColor = null,
         ?string $textColor = null,
         ?string $brandDescription = null,
+        array $extendedPalette = [],
+        ?string $visualNotes = null,
+        ?string $brandGuidelines = null,
         string $quality = 'low',
         int $timeout = 180,
+        array $typography = [],
     ): ?array {
         $keywords = $this->cleanKeywords($keywords);
 
@@ -42,7 +46,19 @@ class AiImageClient
             return null;
         }
 
-        $prompt = $this->buildPrompt($keywords, $style, $language, $brandColor, $backgroundColor, $textColor, $brandDescription);
+        $prompt = $this->buildPrompt(
+            keywords: $keywords,
+            style: $style,
+            language: $language,
+            brandColor: $brandColor,
+            backgroundColor: $backgroundColor,
+            textColor: $textColor,
+            brandDescription: $brandDescription,
+            extendedPalette: $extendedPalette,
+            visualNotes: $visualNotes,
+            brandGuidelines: $brandGuidelines,
+            typography: $typography,
+        );
 
         try {
             $builder = Image::of($prompt)->quality($quality)->timeout($timeout);
@@ -89,8 +105,13 @@ class AiImageClient
         ?string $backgroundColor,
         ?string $textColor,
         ?string $brandDescription,
+        array $extendedPalette = [],
+        ?string $visualNotes = null,
+        ?string $brandGuidelines = null,
+        array $typography = [],
     ): string {
         $palette = $this->buildPaletteContext($brandColor, $backgroundColor, $textColor);
+        $extendedPalette = $this->cleanExtendedPalette($extendedPalette);
 
         return view('prompts.post_image.generator', [
             'style' => $style->value,
@@ -100,11 +121,20 @@ class AiImageClient
             'brand_color_name' => data_get($palette, 'brand_color_name'),
             'background_color_name' => data_get($palette, 'background_color_name'),
             'text_color_name' => data_get($palette, 'text_color_name'),
-            'brand_context' => $this->resolveBrandContext($brandDescription),
+            'role_colors' => array_filter([
+                'Brand / primary accent' => $brandColor,
+                'Background / surfaces' => $backgroundColor,
+                'Text / in-scene typography' => $textColor,
+            ]),
+            'extended_palette' => $extendedPalette,
+            'visual_notes' => $this->resolveBrandContext($visualNotes, 500),
+            'brand_context' => $this->resolveBrandContext($brandDescription, 200),
+            'brand_guidelines' => $this->resolveBrandContext($brandGuidelines, 500),
+            'brand_typography' => $this->cleanTypography($typography),
         ])->render();
     }
 
-    private function resolveBrandContext(?string $brandDescription): ?string
+    private function resolveBrandContext(?string $brandDescription, int $maxLength = self::BRAND_DESCRIPTION_MAX): ?string
     {
         $trimmed = trim((string) $brandDescription);
 
@@ -112,9 +142,53 @@ class AiImageClient
             return null;
         }
 
-        return mb_strlen($trimmed) > self::BRAND_DESCRIPTION_MAX
-            ? mb_substr($trimmed, 0, self::BRAND_DESCRIPTION_MAX).'…'
+        return mb_strlen($trimmed) > $maxLength
+            ? mb_substr($trimmed, 0, $maxLength).'…'
             : $trimmed;
+    }
+
+    /**
+     * @param  mixed  $palette
+     * @return array<string, string>
+     */
+    private function cleanExtendedPalette(mixed $palette): array
+    {
+        if (! is_array($palette)) {
+            return [];
+        }
+
+        $clean = [];
+        foreach ($palette as $name => $hex) {
+            if (! is_string($name) || ! is_string($hex)) {
+                continue;
+            }
+
+            $name = trim($name);
+            $hex = trim($hex);
+            if ($name === '' || ! preg_match('/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/', $hex)) {
+                continue;
+            }
+
+            $clean[$name] = $hex;
+        }
+
+        return array_slice($clean, 0, 20, true);
+    }
+
+    /**
+     * @param  mixed  $typography
+     * @return array<string, string>
+     */
+    private function cleanTypography(mixed $typography): array
+    {
+        if (! is_array($typography)) {
+            return [];
+        }
+
+        return collect($typography)
+            ->filter(fn ($font): bool => is_string($font) && trim($font) !== '')
+            ->map(fn (string $font): string => trim($font))
+            ->all();
     }
 
     /**
@@ -141,6 +215,10 @@ class AiImageClient
 
     private function languageName(string $code): string
     {
+        if ($code === ContentLanguage::Chinese->value) {
+            return 'Traditional Chinese';
+        }
+
         return (ContentLanguage::tryFrom($code) ?? ContentLanguage::DEFAULT)->englishName();
     }
 

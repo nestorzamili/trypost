@@ -21,6 +21,7 @@ use App\Models\Workspace;
 use App\Services\Ai\RecordAiUsage;
 use App\Services\Automation\ExpressionResolver;
 use App\Services\Automation\GenerateNodeValidator;
+use App\Support\ResolvedBrand;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -58,6 +59,7 @@ class RunGenerateNode
 
         $style = ContentStyle::tryFrom((string) data_get($config, 'style', ContentStyle::default()->value)) ?? ContentStyle::default();
         $styleTemplate = app(AiTemplateRegistry::class)->find($style);
+        $brand = $workspace->resolvedBrand();
 
         $platforms = [];
         foreach ($accountsConfig as $entry) {
@@ -96,6 +98,8 @@ class RunGenerateNode
             imageCount: $imageCount,
             isCarousel: $isCarousel,
             applyBrandVisuals: (bool) data_get($config, 'use_brand_visuals', true),
+            languageCode: $brand->languageCode,
+            brand: $brand,
         );
 
         $agent = new PostContentGenerator(
@@ -106,6 +110,7 @@ class RunGenerateNode
             applyBrandVoice: $applyBrandVoice,
             template: $styleTemplate,
             templateContext: $templateContext,
+            brand: $brand,
         );
 
         $generatorResponse = $agent->prompt($prompt);
@@ -116,12 +121,22 @@ class RunGenerateNode
             completionTokens: $generatorResponse->usage->completionTokens,
             provider: (string) $generatorResponse->meta->provider,
             model: (string) $generatorResponse->meta->model,
-            metadata: ['agent' => 'post_generator', 'format' => $format->value, 'source' => 'automation'],
+            metadata: [
+                'agent' => 'post_generator',
+                'format' => $format->value,
+                'source' => 'automation',
+                'content_language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'brand_variant_language' => $brand->hasVariant ? $brand->languageCode : null,
+                'has_brand_variant' => $brand->hasVariant,
+                'apply_brand_voice' => $applyBrandVoice,
+                'apply_brand_visuals' => (bool) data_get($config, 'use_brand_visuals', true),
+            ],
         );
 
         $structured = $generatorResponse->structured ?? [];
 
-        $structured = $this->humanize($workspace, $structured, $format, $style, $applyBrandVoice, $platformContext);
+        $structured = $this->humanize($workspace, $structured, $format, $style, $applyBrandVoice, $platformContext, $brand);
 
         $intendedImageCount = $this->intendedImageCount($format, $slideCount, $wantsImage, $structured, $brandAccount, $style);
 
@@ -164,7 +179,7 @@ class RunGenerateNode
      * @param  array<string, mixed>  $structured
      * @return array<string, mixed>
      */
-    private function humanize(Workspace $workspace, array $structured, GeneratorFormat $format, ContentStyle $style, bool $applyBrandVoice = true, ?string $platformContext = null): array
+    private function humanize(Workspace $workspace, array $structured, GeneratorFormat $format, ContentStyle $style, bool $applyBrandVoice = true, ?string $platformContext = null, ?ResolvedBrand $brand = null): array
     {
         if (! $style->humanizes()) {
             return $structured;
@@ -188,7 +203,14 @@ class RunGenerateNode
                     'image_body' => data_get($structured, 'image_body', ''),
                 ];
 
-            $humanizer = new PostContentHumanizer($workspace, $format, platformContext: $platformContext, applyBrandVoice: $applyBrandVoice);
+            $humanizer = new PostContentHumanizer(
+                workspace: $workspace,
+                format: $format,
+                platformContext: $platformContext,
+                applyBrandVoice: $applyBrandVoice,
+                languageCode: $brand?->languageCode,
+                brand: $brand,
+            );
             $response = $humanizer->prompt(json_encode($input, JSON_UNESCAPED_UNICODE));
             $humanized = $response->structured ?? [];
 
@@ -198,7 +220,16 @@ class RunGenerateNode
                 completionTokens: $response->usage->completionTokens,
                 provider: (string) $response->meta->provider,
                 model: (string) $response->meta->model,
-                metadata: ['agent' => 'post_humanizer', 'format' => $format->value, 'source' => 'automation'],
+                metadata: [
+                    'agent' => 'post_humanizer',
+                    'format' => $format->value,
+                    'source' => 'automation',
+                    'content_language' => $brand?->languageCode,
+                    'brand_variant_id' => $brand?->variantId,
+                    'brand_variant_language' => $brand?->hasVariant ? $brand->languageCode : null,
+                    'has_brand_variant' => $brand?->hasVariant,
+                    'apply_brand_voice' => $applyBrandVoice,
+                ],
             );
 
             if ($format->isCarousel()) {

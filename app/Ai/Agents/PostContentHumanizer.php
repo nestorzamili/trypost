@@ -7,6 +7,7 @@ namespace App\Ai\Agents;
 use App\Ai\Agents\Concerns\ResolvesPlatformCopyBudget;
 use App\Enums\Ai\GeneratorFormat;
 use App\Models\Workspace;
+use App\Support\ResolvedBrand;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Contracts\Agent;
@@ -30,6 +31,8 @@ class PostContentHumanizer implements Agent, HasStructuredOutput
         public GeneratorFormat $format = GeneratorFormat::Single,
         public ?string $platformContext = null,
         public bool $applyBrandVoice = true,
+        public ?string $languageCode = null,
+        public ?ResolvedBrand $brand = null,
     ) {}
 
     public function instructions(): string
@@ -39,10 +42,17 @@ class PostContentHumanizer implements Agent, HasStructuredOutput
         // rewrite can drift past the limit the generator respected.
         $budget = $this->platformCopyBudget($this->platformContext);
 
+        $brand = $this->brand ?? $this->workspace->resolvedBrand($this->languageCode);
+
         return view('prompts.post_content.humanizer', [
             'brand_name' => $this->workspace->name ?? '',
-            'brand_voice_traits' => $this->applyBrandVoice ? ($this->workspace->brand_voice_traits ?? []) : [],
-            'content_language' => $this->workspace->content_language,
+            'brand_description' => '',
+            'brand_guidelines' => $this->applyBrandVoice ? $brand->brandGuidelines : '',
+            'brand_voice_traits' => $this->applyBrandVoice ? $brand->brandVoiceTraits : [],
+            'include_description' => false,
+            'include_voice' => $this->applyBrandVoice,
+            'include_visuals' => false,
+            'content_language' => $brand->languageCode,
             'format' => $this->format->value,
             'hard_max_chars' => data_get($budget, 'hard_max_chars'),
             'target_chars' => data_get($budget, 'target_chars'),

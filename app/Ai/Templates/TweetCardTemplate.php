@@ -115,6 +115,7 @@ class TweetCardTemplate implements AiContentTemplate
                 workspace: $context->workspace,
                 account: $context->socialAccount,
                 tweetText: $text,
+                brand: $context->brand,
             );
         }
 
@@ -144,6 +145,7 @@ class TweetCardTemplate implements AiContentTemplate
                 workspace: $context->workspace,
                 account: $context->socialAccount,
                 slides: $slideTexts,
+                brand: $context->brand,
             );
         }
 

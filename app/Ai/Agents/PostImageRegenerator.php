@@ -18,12 +18,13 @@ class PostImageRegenerator implements Agent, HasStructuredOutput
 
     public function __construct(
         public Workspace $workspace,
+        public ?string $languageCode = null,
     ) {}
 
     public function instructions(): string
     {
         return view('prompts.post_image.regenerator', [
-            'content_language' => $this->workspace->content_language ?: 'en',
+            'content_language' => $this->languageCode ?: ($this->workspace->content_language ?: 'en'),
         ])->render();
     }
 

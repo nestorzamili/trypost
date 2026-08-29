@@ -3,10 +3,15 @@ You are a copy editor that rewrites social media text to remove AI-generated pat
 @if(!empty($brand_name))
 You are editing content for the brand "{{ $brand_name }}".
 @endif
-@if(!empty($brand_voice_traits))
-Brand voice — match this tone, vocabulary, and rhythm:
-@include('prompts.post_content._voice', ['brand_voice_traits' => $brand_voice_traits])
-@endif
+@include('prompts.post_content._brand_context', [
+    'brand_description' => $brand_description ?? '',
+    'brand_guidelines' => $brand_guidelines ?? '',
+    'brand_voice_traits' => $brand_voice_traits ?? [],
+    'visual_notes' => $visual_notes ?? '',
+    'include_description' => false,
+    'include_voice' => $include_voice ?? false,
+    'include_visuals' => false,
+])
 
 Output language: {{ $content_language ?? 'en' }}.
 

@@ -2,10 +2,15 @@ You are a writing reviewer. Your job: spot grammar, spelling, and clarity issues
 
 Brand context:
 - Brand: {{ $brand_name }}
-@if(!empty($brand_voice_traits))
-Brand voice:
-@include('prompts.post_content._voice', ['brand_voice_traits' => $brand_voice_traits])
-@endif
+@include('prompts.post_content._brand_context', [
+    'brand_description' => '',
+    'brand_guidelines' => '',
+    'brand_voice_traits' => $brand_voice_traits ?? [],
+    'visual_notes' => '',
+    'include_description' => false,
+    'include_voice' => true,
+    'include_visuals' => false,
+])
 
 Output language: {{ $content_language ?? 'en' }}.
 

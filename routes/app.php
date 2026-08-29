@@ -29,6 +29,7 @@ use App\Http\Controllers\App\Settings\UsageController;
 use App\Http\Controllers\App\UnsplashController;
 use App\Http\Controllers\App\WelcomeController;
 use App\Http\Controllers\App\WorkspaceController;
+use App\Http\Controllers\App\BrandVariantController;
 use App\Http\Controllers\App\WorkspaceInviteController;
 use App\Http\Controllers\App\WorkspaceLabelController;
 use App\Http\Controllers\App\WorkspaceSignatureController;
@@ -177,6 +178,12 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
 
     // Brand settings
     Route::get('settings/workspace/brand', [WorkspaceController::class, 'brandSettings'])->name('app.workspace.brand');
+    Route::post('settings/workspace/brand-variants', [BrandVariantController::class, 'store'])
+        ->name('app.workspace.brand-variants.store');
+    Route::put('settings/workspace/brand-variants/{brandVariant}', [BrandVariantController::class, 'update'])
+        ->name('app.workspace.brand-variants.update');
+    Route::delete('settings/workspace/brand-variants/{brandVariant}', [BrandVariantController::class, 'destroy'])
+        ->name('app.workspace.brand-variants.destroy');
 
     // Social Accounts
     Route::get('accounts', [SocialController::class, 'index'])->name('app.accounts');

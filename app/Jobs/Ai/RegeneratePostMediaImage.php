@@ -14,6 +14,7 @@ use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Services\Ai\RecordAiUsage;
 use App\Services\Image\TemplateImageGenerator;
+use App\Support\ResolvedBrand;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -70,9 +71,10 @@ class RegeneratePostMediaImage implements ShouldQueue
             post: $post,
             workspace: $workspace,
         );
+        $brand = $this->resolveBrand($workspace, $baseContext);
 
-        $copy = $this->regenerateSlideCopy($workspace, $post, $baseContext);
-        $rendered = $this->renderRegeneratedImage($workspace, $post, $copy, $baseContext);
+        $copy = $this->regenerateSlideCopy($workspace, $post, $baseContext, $brand);
+        $rendered = $this->renderRegeneratedImage($workspace, $post, $copy, $baseContext, $brand);
         $newMediaItem = $this->replaceMediaOnPost($post, $target, $workspace, $rendered);
 
         PostMediaRegenerated::dispatch(
@@ -119,8 +121,10 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   background_path: string,
      *   language: string,
      *   width: int,
-     *   height: int
+     *   height: int,
+     *   brand_snapshot: array<string, mixed>|null
      * }  $baseContext
+     * @param  ResolvedBrand  $brand
      * @return array{
      *   title: string,
      *   body: string,
@@ -130,10 +134,13 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   change_mode: 'image_only'|'text_only'|'both'
      * }
      */
-    private function regenerateSlideCopy(Workspace $workspace, Post $post, array $baseContext): array
+    private function regenerateSlideCopy(Workspace $workspace, Post $post, array $baseContext, ResolvedBrand $brand): array
     {
         /** @var PostImageRegenerator $agent */
-        $agent = app(PostImageRegenerator::class, ['workspace' => $workspace]);
+        $agent = app(PostImageRegenerator::class, [
+            'workspace' => $workspace,
+            'languageCode' => $brand->languageCode,
+        ]);
 
         $response = $agent->prompt(json_encode([
             'instruction' => $this->instruction,
@@ -151,7 +158,13 @@ class RegeneratePostMediaImage implements ShouldQueue
             model: (string) $response->meta->model,
             userId: $this->userId,
             postId: $post->id,
-            metadata: ['agent' => 'post_image_regenerator'],
+             metadata: [
+                 'agent' => 'post_image_regenerator',
+                 'content_language' => $brand->languageCode,
+                 'brand_variant_id' => $brand->variantId,
+                 'brand_variant_language' => $brand->languageCode,
+                 'has_brand_variant' => $brand->hasVariant,
+             ],
         );
 
         return $this->mergeStructuredCopy($baseContext, $response->structured ?? []);
@@ -213,8 +226,10 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   keywords: array<int, string>,
      *   language: string,
      *   width: int,
-     *   height: int
+     *   height: int,
+     *   brand_snapshot: array<string, mixed>|null
      * }  $baseContext
+     * @param  ResolvedBrand  $brand
      * @return array{path: string, source_meta: array<string, mixed>}
      */
     private function renderRegeneratedImage(
@@ -222,6 +237,7 @@ class RegeneratePostMediaImage implements ShouldQueue
         Post $post,
         array $copy,
         array $baseContext,
+        ResolvedBrand $brand,
     ): array {
         $socialAccount = $this->resolveSocialAccount($post, $workspace);
 
@@ -246,6 +262,7 @@ class RegeneratePostMediaImage implements ShouldQueue
             width: data_get($baseContext, 'width'),
             height: data_get($baseContext, 'height'),
             backgroundPath: $reusedBackgroundPath,
+            brand: $brand,
         );
 
         if (! $rendered) {
@@ -325,7 +342,8 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   background_path: string,
      *   language: string,
      *   width: int,
-     *   height: int
+     *   height: int,
+     *   brand_snapshot: array<string, mixed>|null
      * }
      */
     private function buildSourceContext(array $sourceMeta, Post $post, Workspace $workspace): array
@@ -358,7 +376,22 @@ class RegeneratePostMediaImage implements ShouldQueue
             'language' => (string) data_get($sourceMeta, 'language', $workspace->content_language),
             'width' => (int) data_get($sourceMeta, 'width', TemplateImageGenerator::DEFAULT_WIDTH),
             'height' => (int) data_get($sourceMeta, 'height', TemplateImageGenerator::DEFAULT_HEIGHT),
+            'brand_snapshot' => is_array(data_get($sourceMeta, 'brand_snapshot'))
+                ? data_get($sourceMeta, 'brand_snapshot')
+                : null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $baseContext
+     */
+    private function resolveBrand(Workspace $workspace, array $baseContext): ResolvedBrand
+    {
+        $snapshot = data_get($baseContext, 'brand_snapshot');
+
+        return is_array($snapshot)
+            ? ResolvedBrand::fromSnapshot($snapshot)
+            : $workspace->resolvedBrand((string) data_get($baseContext, 'language', $workspace->content_language));
     }
 
     /**

@@ -6,13 +6,18 @@ import BrandTab from '@/components/settings/BrandTab.vue';
 import SettingsTabsNav from '@/components/settings/SettingsTabsNav.vue';
 import { useWorkspaceSettingsTabs } from '@/composables/useWorkspaceSettingsTabs';
 import AppLayout from '@/layouts/AppLayout.vue';
-import type { ContentLanguageOption } from '@/types';
+import type {
+    BrandVariant,
+    BrandVariantLanguage,
+    ContentLanguageOption,
+} from '@/types';
 
 interface Workspace {
     id: string;
     name: string;
     brand_website: string | null;
     brand_description: string | null;
+    brand_guidelines: string | null;
     brand_voice_traits: string[] | null;
     brand_color: string | null;
     background_color: string | null;
@@ -20,6 +25,7 @@ interface Workspace {
     brand_font: string;
     image_style: string;
     content_language: string;
+    brand_variants: BrandVariant[];
 }
 
 defineProps<{
@@ -28,6 +34,7 @@ defineProps<{
     availableImageStyles: string[];
     availableVoiceTraits: Record<string, string[]>;
     availableContentLanguages: ContentLanguageOption[];
+    variantLanguages: BrandVariantLanguage[];
 }>();
 
 const tabs = useWorkspaceSettingsTabs();
@@ -51,6 +58,7 @@ const tabs = useWorkspaceSettingsTabs();
                 :available-image-styles="availableImageStyles"
                 :available-voice-traits="availableVoiceTraits"
                 :available-content-languages="availableContentLanguages"
+                :variant-languages="variantLanguages"
             />
         </div>
     </AppLayout>
