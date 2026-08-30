@@ -22,7 +22,6 @@ return [
     'groups' => [
         'posts' => 'Gönderiler',
         'workspace' => 'Çalışma Alanı',
-        'others' => 'Diğerleri',
     ],
     'analytics' => 'Analitik',
     'automations' => 'Otomasyonlar',
@@ -40,9 +39,4 @@ return [
     'mark_as_read' => 'Okundu olarak işaretle',
     'archive_all' => 'Tümünü arşivle',
     'no_notifications' => 'Bildirim yok',
-    'support' => [
-        'docs' => 'Dokümantasyon',
-        'referral' => '%30 referans kazanın',
-        'discord' => 'Discord topluluğu',
-    ],
 ];

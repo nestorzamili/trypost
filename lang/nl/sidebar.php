@@ -22,7 +22,6 @@ return [
     'groups' => [
         'posts' => 'Posts',
         'workspace' => 'Workspace',
-        'others' => 'Overige',
     ],
     'analytics' => 'Statistieken',
     'automations' => 'Automatiseringen',
@@ -40,9 +39,4 @@ return [
     'mark_as_read' => 'Als gelezen markeren',
     'archive_all' => 'Alles archiveren',
     'no_notifications' => 'Geen meldingen',
-    'support' => [
-        'docs' => 'Documentatie',
-        'referral' => 'Verdien 30% referral',
-        'discord' => 'Discord-community',
-    ],
 ];

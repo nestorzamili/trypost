@@ -22,7 +22,6 @@ return [
     'groups' => [
         'posts' => 'Publications',
         'workspace' => 'Espace de travail',
-        'others' => 'Autres',
     ],
     'analytics' => 'Statistiques',
     'automations' => 'Automatisations',
@@ -40,9 +39,4 @@ return [
     'mark_as_read' => 'Marquer comme lu',
     'archive_all' => 'Tout archiver',
     'no_notifications' => 'Aucune notification',
-    'support' => [
-        'docs' => 'Documentation',
-        'referral' => 'Gagnez 30 % de parrainage',
-        'discord' => 'Communauté Discord',
-    ],
 ];

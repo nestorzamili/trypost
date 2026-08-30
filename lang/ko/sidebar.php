@@ -22,7 +22,6 @@ return [
     'groups' => [
         'posts' => '게시물',
         'workspace' => '워크스페이스',
-        'others' => '기타',
     ],
     'analytics' => '분석',
     'automations' => '자동화',
@@ -40,9 +39,4 @@ return [
     'mark_as_read' => '읽음으로 표시',
     'archive_all' => '모두 보관',
     'no_notifications' => '알림 없음',
-    'support' => [
-        'docs' => '문서',
-        'referral' => '30% 추천 수익 받기',
-        'discord' => 'Discord 커뮤니티',
-    ],
 ];

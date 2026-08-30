@@ -22,7 +22,6 @@ return [
     'groups' => [
         'posts' => 'المنشورات',
         'workspace' => 'مساحة العمل',
-        'others' => 'أخرى',
     ],
     'analytics' => 'التحليلات',
     'automations' => 'الأتمتة',
@@ -40,9 +39,4 @@ return [
     'mark_as_read' => 'تعليم كمقروء',
     'archive_all' => 'أرشفة الكل',
     'no_notifications' => 'لا توجد إشعارات',
-    'support' => [
-        'docs' => 'التوثيق',
-        'referral' => 'اربح عمولة إحالة 30%',
-        'discord' => 'مجتمع Discord',
-    ],
 ];

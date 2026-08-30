@@ -22,7 +22,6 @@ return [
     'groups' => [
         'posts' => 'Пости',
         'workspace' => 'Робочий простір',
-        'others' => 'Інше',
     ],
     'analytics' => 'Аналітика',
     'automations' => 'Автоматизації',
@@ -40,9 +39,4 @@ return [
     'mark_as_read' => 'Позначити прочитаним',
     'archive_all' => 'Архівувати все',
     'no_notifications' => 'Немає сповіщень',
-    'support' => [
-        'docs' => 'Документація',
-        'referral' => 'Отримуйте 30% за рефералами',
-        'discord' => 'Спільнота Discord',
-    ],
 ];
