@@ -20,7 +20,9 @@ services:
             # DB_HOST=127.0.0.1, DB_USERNAME=root). Without these, the test
             # suite can't see Postgres / Redis from inside the container.
             DB_HOST: pgsql
-            DB_USERNAME: postgres
+            DB_DATABASE: ${DB_DATABASE:-trypost}
+            DB_USERNAME: ${DB_USERNAME:-postgres}
+            DB_PASSWORD: ${DB_PASSWORD:-password}
             REDIS_HOST: redis
         volumes:
             - .:/var/www/html

@@ -10,6 +10,13 @@ use App\Mcp\Tools\ApiKey\ListApiKeysTool;
 use App\Mcp\Tools\Asset\AttachExistingAssetTool;
 use App\Mcp\Tools\Asset\GetAssetTool;
 use App\Mcp\Tools\Asset\ListAssetsTool;
+use App\Mcp\Tools\Brand\CreateBrandVariantTool;
+use App\Mcp\Tools\Brand\DeleteBrandVariantTool;
+use App\Mcp\Tools\Brand\GetBrandTool;
+use App\Mcp\Tools\Brand\GetBrandVariantTool;
+use App\Mcp\Tools\Brand\ListBrandVariantsTool;
+use App\Mcp\Tools\Brand\UpdateBrandTool;
+use App\Mcp\Tools\Brand\UpdateBrandVariantTool;
 use App\Mcp\Tools\Label\CreateLabelTool;
 use App\Mcp\Tools\Label\DeleteLabelTool;
 use App\Mcp\Tools\Label\ListLabelsTool;
@@ -44,7 +51,7 @@ use Laravel\Mcp\Server\Attributes\Version;
 #[Name('TryPost')]
 #[Version('1.0.0')]
 #[Icon('images/trypost/icon.png', mimeType: 'image/png')]
-#[Instructions('TryPost is a social media scheduling platform. Use this server to manage posts, the Asset Library, signatures, labels, social accounts, workspaces, and API keys.')]
+#[Instructions('TryPost is a social media scheduling platform. Use this server to manage posts, the Asset Library, signatures, labels, social accounts, workspaces, brand identity, language variants, and API keys.')]
 class TryPostServer extends Server
 {
     public int $defaultPaginationLength = 100;
@@ -89,8 +96,15 @@ class TryPostServer extends Server
         ListDiscordChannelsTool::class,
         ToggleSocialAccountTool::class,
 
-        // Workspace
+        // Workspace & Brand
         GetWorkspaceTool::class,
+        GetBrandTool::class,
+        UpdateBrandTool::class,
+        ListBrandVariantsTool::class,
+        GetBrandVariantTool::class,
+        CreateBrandVariantTool::class,
+        UpdateBrandVariantTool::class,
+        DeleteBrandVariantTool::class,
 
         // API Keys
         ListApiKeysTool::class,
