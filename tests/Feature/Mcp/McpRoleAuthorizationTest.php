@@ -12,7 +12,6 @@ use App\Mcp\Tools\Label\CreateLabelTool;
 use App\Mcp\Tools\Label\DeleteLabelTool;
 use App\Mcp\Tools\Label\ListLabelsTool;
 use App\Mcp\Tools\Label\UpdateLabelTool;
-use App\Mcp\Tools\Post\AttachMediaFromBase64Tool;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
 use App\Mcp\Tools\Post\AttachMediaFromUrlTool;
 use App\Mcp\Tools\Post\PublishPostTool;
@@ -103,13 +102,6 @@ test('viewers cannot publish attach media or request uploads via mcp', function 
         ->tool(AttachMediaFromUploadTool::class, [
             'post_id' => $this->post->id,
             'upload_token' => $uploadToken,
-        ])
-        ->assertHasErrors(['Not authorized to update this post.']);
-
-    TryPostServer::actingAs($this->viewer)
-        ->tool(AttachMediaFromBase64Tool::class, [
-            'post_id' => $this->post->id,
-            'data' => base64_encode('fake image content'),
         ])
         ->assertHasErrors(['Not authorized to update this post.']);
 

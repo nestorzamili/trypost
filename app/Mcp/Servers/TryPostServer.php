@@ -15,7 +15,6 @@ use App\Mcp\Tools\Label\DeleteLabelTool;
 use App\Mcp\Tools\Label\ListLabelsTool;
 use App\Mcp\Tools\Label\UpdateLabelTool;
 use App\Mcp\Tools\Platform\ListContentTypesTool;
-use App\Mcp\Tools\Post\AttachMediaFromBase64Tool;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
 use App\Mcp\Tools\Post\AttachMediaFromUrlTool;
 use App\Mcp\Tools\Post\CreatePostTool;
@@ -60,7 +59,6 @@ class TryPostServer extends Server
         PreviewPostTool::class,
         DeletePostTool::class,
         AttachMediaFromUrlTool::class,
-        AttachMediaFromBase64Tool::class,
         RequestMediaUploadTool::class,
         AttachMediaFromUploadTool::class,
         GetPostMetricsTool::class,
