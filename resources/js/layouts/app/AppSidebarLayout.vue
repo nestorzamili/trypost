@@ -41,7 +41,7 @@ onBeforeUnmount(() => {
 <template>
     <SidebarProvider :default-open="isOpen">
         <AppSidebar />
-        <SidebarInset class="overflow-x-hidden">
+        <SidebarInset class="overflow-hidden">
             <AppHeader v-if="$slots['header'] || $slots['header-actions']">
                 <template v-if="$slots['header']" #left>
                     <slot name="header" />
@@ -58,7 +58,7 @@ onBeforeUnmount(() => {
                 :class="
                     fullWidth
                         ? 'flex min-h-0 flex-1 flex-col overflow-y-auto'
-                        : 'flex-1 overflow-y-auto'
+                        : 'min-h-0 flex-1 overflow-y-auto'
                 "
             >
                 <div

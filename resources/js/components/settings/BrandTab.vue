@@ -64,7 +64,10 @@ const canAddVariant = computed(() =>
 const deleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
 
 const submit = () => {
-    form.put(WorkspaceController.updateSettings.url());
+    if (form.processing) return;
+    form.put(WorkspaceController.updateSettings.url(), {
+        preserveScroll: true,
+    });
 };
 
 const addVariant = () => {

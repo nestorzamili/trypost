@@ -158,9 +158,11 @@ const updateColorRow = (
 };
 
 const submit = () => {
+    if (form.processing) return;
     syncColors();
 
     const options = {
+        preserveScroll: true,
         onSuccess: () => {
             open.value = false;
         },
