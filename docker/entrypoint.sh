@@ -127,10 +127,11 @@ fi
 if [ "${TARGET}" = "production" ]; then
     chown -R www-data:www-data storage bootstrap/cache
 else
-    # Dev: ensure UID-mapped user owns runtime dirs.
+    # Dev: ensure UID-mapped user owns runtime dirs and storage is writable.
     APP_UID="${UID:-1000}"
     APP_GID="${GID:-1000}"
     chown -R "${APP_UID}:${APP_GID}" storage bootstrap/cache 2>/dev/null || true
+    chmod -R 777 storage bootstrap/cache 2>/dev/null || true
 fi
 
 echo "[entrypoint] ready — handing off to supervisord"

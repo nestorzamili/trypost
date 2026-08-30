@@ -24,6 +24,7 @@ services:
             REDIS_HOST: redis
         volumes:
             - .:/var/www/html
+            - ./docker/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
             - app-vendor:/var/www/html/vendor
             - app-node-modules:/var/www/html/node_modules
         extra_hosts:
