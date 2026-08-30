@@ -7,6 +7,7 @@ use App\Http\Controllers\App\ApiKeyController;
 use App\Http\Controllers\App\AssetController;
 use App\Http\Controllers\App\AutomationController;
 use App\Http\Controllers\App\BillingController;
+use App\Http\Controllers\App\BrandReferencePhotoController;
 use App\Http\Controllers\App\BrandVariantController;
 use App\Http\Controllers\App\DiscordController as AppDiscordController;
 use App\Http\Controllers\App\GiphyController;
@@ -184,6 +185,12 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->name('app.workspace.brand-variants.update');
     Route::delete('settings/workspace/brand-variants/{brandVariant}', [BrandVariantController::class, 'destroy'])
         ->name('app.workspace.brand-variants.destroy');
+    Route::get('settings/workspace/brand-references', [BrandReferencePhotoController::class, 'index'])
+        ->name('app.workspace.brand-references.index');
+    Route::post('settings/workspace/brand-references', [BrandReferencePhotoController::class, 'store'])
+        ->name('app.workspace.brand-references.store');
+    Route::delete('settings/workspace/brand-references/{media}', [BrandReferencePhotoController::class, 'destroy'])
+        ->name('app.workspace.brand-references.destroy');
 
     // Social Accounts
     Route::get('accounts', [SocialController::class, 'index'])->name('app.accounts');

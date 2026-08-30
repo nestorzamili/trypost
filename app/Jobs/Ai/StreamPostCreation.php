@@ -49,6 +49,8 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
         public ?string $date = null,
         public string $template = 'image_card',
         public bool $applyBrandVisuals = true,
+        public array $referenceMediaIds = [],
+        public bool $useBrandReferences = true,
     ) {
         $this->onQueue('ai');
     }
@@ -70,6 +72,18 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
         $slideCount = $isCarousel && $this->imageCount > 0 ? $this->imageCount : 1;
         $brand = $workspace->resolvedBrand();
 
+        $referenceImages = [];
+        if (! empty($this->referenceMediaIds)) {
+            $referenceImages = $workspace->media()
+                ->whereIn('id', $this->referenceMediaIds)
+                ->pluck('path')
+                ->all();
+        } elseif ($this->useBrandReferences) {
+            $referenceImages = $workspace->getMedia('brand_references')
+                ->pluck('path')
+                ->all();
+        }
+
         $context = new TemplateContext(
             workspace: $workspace,
             socialAccount: $socialAccount,
@@ -79,6 +93,7 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
             applyBrandVisuals: $this->applyBrandVisuals,
             languageCode: $brand->languageCode,
             brand: $brand,
+            referenceImages: $referenceImages,
         );
 
         $agent = new PostContentGenerator(

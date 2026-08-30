@@ -1,10 +1,22 @@
 <script setup lang="ts">
 import { CurveType } from '@unovis/ts';
-import { VisArea, VisAxis, VisCrosshair, VisLine, VisTooltip, VisXYContainer } from '@unovis/vue';
+import {
+    VisArea,
+    VisAxis,
+    VisCrosshair,
+    VisLine,
+    VisTooltip,
+    VisXYContainer,
+} from '@unovis/vue';
 
 import date from '@/date';
 
-type Point = { date: string; started: number; completed: number; failed: number };
+type Point = {
+    date: string;
+    started: number;
+    completed: number;
+    failed: number;
+};
 
 const props = defineProps<{ data: Point[] }>();
 
@@ -34,11 +46,39 @@ const tooltipTemplate = (d: Point): string =>
 </script>
 
 <template>
-    <VisXYContainer :data="data" :height="260" :margin="{ top: 12, right: 8, bottom: 4, left: 8 }">
-        <VisArea :x="x" :y="yStarted" :color="seriesColors.started" :opacity="0.1" :curve-type="CurveType.MonotoneX" />
-        <VisLine :x="x" :y="yStarted" :color="seriesColors.started" :line-width="2.5" :curve-type="CurveType.MonotoneX" />
-        <VisLine :x="x" :y="yCompleted" :color="seriesColors.completed" :line-width="2.5" :curve-type="CurveType.MonotoneX" />
-        <VisLine :x="x" :y="yFailed" :color="seriesColors.failed" :line-width="2.5" :curve-type="CurveType.MonotoneX" />
+    <VisXYContainer
+        :data="data"
+        :height="260"
+        :margin="{ top: 12, right: 8, bottom: 4, left: 8 }"
+    >
+        <VisArea
+            :x="x"
+            :y="yStarted"
+            :color="seriesColors.started"
+            :opacity="0.1"
+            :curve-type="CurveType.MonotoneX"
+        />
+        <VisLine
+            :x="x"
+            :y="yStarted"
+            :color="seriesColors.started"
+            :line-width="2.5"
+            :curve-type="CurveType.MonotoneX"
+        />
+        <VisLine
+            :x="x"
+            :y="yCompleted"
+            :color="seriesColors.completed"
+            :line-width="2.5"
+            :curve-type="CurveType.MonotoneX"
+        />
+        <VisLine
+            :x="x"
+            :y="yFailed"
+            :color="seriesColors.failed"
+            :line-width="2.5"
+            :curve-type="CurveType.MonotoneX"
+        />
         <VisAxis
             type="x"
             :tick-format="xTickFormat"
@@ -56,15 +96,26 @@ const tooltipTemplate = (d: Point): string =>
             :tick-line="false"
             color="var(--color-foreground)"
         />
-        <VisCrosshair :template="tooltipTemplate" :color="seriesColors.started" />
+        <VisCrosshair
+            :template="tooltipTemplate"
+            :color="seriesColors.started"
+        />
         <VisTooltip />
     </VisXYContainer>
 </template>
 
 <style scoped>
 :deep(.unovis-xy-container) {
-    --vis-axis-tick-label-color: color-mix(in oklab, var(--color-foreground) 45%, transparent);
+    --vis-axis-tick-label-color: color-mix(
+        in oklab,
+        var(--color-foreground) 45%,
+        transparent
+    );
     --vis-axis-tick-label-font-size: 11px;
-    --vis-crosshair-line-stroke-color: color-mix(in oklab, var(--color-foreground) 20%, transparent);
+    --vis-crosshair-line-stroke-color: color-mix(
+        in oklab,
+        var(--color-foreground) 20%,
+        transparent
+    );
 }
 </style>

@@ -59,6 +59,7 @@ class TemplateImageGenerator
         ?string $backgroundPath = null,
         bool $applyBrandVisuals = true,
         ?ResolvedBrand $brand = null,
+        array $referenceImages = [],
     ): ?array {
         $this->width = $width;
         $this->height = $height;
@@ -93,6 +94,10 @@ class TemplateImageGenerator
         }
 
         if (! is_string($imageData) || $imageData === '') {
+            $resolvedReferences = $referenceImages !== []
+                ? $referenceImages
+                : $workspace->getMedia('brand_references')->pluck('path')->all();
+
             $generated = $this->aiImage->generate(
                 keywords: $imageKeywords,
                 style: $imageStyle,
@@ -105,6 +110,13 @@ class TemplateImageGenerator
                 extendedPalette: $extendedPalette,
                 visualNotes: $visualNotes,
                 brandGuidelines: $brandGuidelines,
+                typography: [
+                    'headline' => $brand->headlineFont,
+                    'body' => $brand->bodyFont,
+                    'label' => $brand->labelFont,
+                    'accent' => $brand->accentFont,
+                ],
+                referenceImages: $resolvedReferences,
             );
 
             if ($generated === null) {
@@ -649,6 +661,7 @@ class TemplateImageGenerator
         string $tweetText,
         ?array $imageKeywords = null,
         ?ResolvedBrand $brand = null,
+        array $referenceImages = [],
     ): ?array {
         $this->width = self::DEFAULT_WIDTH;
         $this->height = self::DEFAULT_HEIGHT;
@@ -668,7 +681,7 @@ class TemplateImageGenerator
         $useImageBackground = $imageKeywords !== null && $imageKeywords !== [];
 
         if ($useImageBackground) {
-            $canvas = $this->applyTweetCardImageBackground($manager, $canvas, $core, $workspace, $imageKeywords, $brand);
+            $canvas = $this->applyTweetCardImageBackground($manager, $canvas, $core, $workspace, $imageKeywords, $brand, $referenceImages);
             $core = $canvas->core()->native();
         } else {
             $pageBg = imagecolorallocate($core, $pr, $pg, $pb);
@@ -723,6 +736,7 @@ class TemplateImageGenerator
      * Falls back to a solid brand-color fill when the AI client returns null.
      *
      * @param  array<int, string>  $imageKeywords
+     * @param  array<int, string|\Laravel\Ai\Files\Image>  $referenceImages
      */
     private function applyTweetCardImageBackground(
         ImageManager $manager,
@@ -731,6 +745,7 @@ class TemplateImageGenerator
         Workspace $workspace,
         array $imageKeywords,
         ResolvedBrand $brand,
+        array $referenceImages = [],
     ): ImageInterface {
         $rawStyle = $workspace->image_style;
         $imageStyle = match (true) {
@@ -738,6 +753,10 @@ class TemplateImageGenerator
             is_string($rawStyle) => ImageStyle::tryFrom($rawStyle) ?? ImageStyle::DEFAULT,
             default => ImageStyle::DEFAULT,
         };
+
+        $resolvedReferences = $referenceImages !== []
+            ? $referenceImages
+            : $workspace->getMedia('brand_references')->pluck('path')->all();
 
         $generated = $this->aiImage->generate(
             keywords: $imageKeywords,
@@ -757,6 +776,7 @@ class TemplateImageGenerator
                 'label' => $brand->labelFont,
                 'accent' => $brand->accentFont,
             ],
+            referenceImages: $resolvedReferences,
         );
 
         if ($generated === null) {

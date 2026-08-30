@@ -14,7 +14,9 @@ export class AddNodeCommand implements Command {
     ) {}
 
     revert(): void {
-        this.nodesRef.value = this.nodesRef.value.filter((n) => n.id !== this.node.id);
+        this.nodesRef.value = this.nodesRef.value.filter(
+            (n) => n.id !== this.node.id,
+        );
     }
 
     getReverseCommand(): Command {

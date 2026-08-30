@@ -622,6 +622,9 @@ return [
             'media_count_label' => 'Número de imágenes',
             'brand_colors_label' => 'Colores de marca',
             'brand_colors_description' => 'Aplica la paleta de tu marca a las imágenes generadas. Desactívalo para que la IA elija los colores que mejor encajen con el contenido.',
+            
+            "brand_references_label" => "Use Brand Reference Photos",
+            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
             'prompt_title' => 'Describe tu post',
             'prompt_label' => '¿De qué trata este post?',
             'prompt_placeholder' => 'Ej. Anuncia nuestra nueva función de carrusel para Instagram',

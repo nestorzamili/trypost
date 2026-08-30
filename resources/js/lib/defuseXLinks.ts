@@ -19,10 +19,20 @@ const LINK_PATTERN =
  * The delegated TLDs are handed in rather than declared here: `App\Support\LinkTlds`
  * is the only place the list lives, and the editor receives it as a page prop.
  */
-export const defuseXLinks = (content: string, tlds: ReadonlySet<string>): string =>
+export const defuseXLinks = (
+    content: string,
+    tlds: ReadonlySet<string>,
+): string =>
     content.replace(
         LINK_PATTERN,
-        (whole: string, boundary: string, prefix: string, host: string, tld: string, path: string): string =>
+        (
+            whole: string,
+            boundary: string,
+            prefix: string,
+            host: string,
+            tld: string,
+            path: string,
+        ): string =>
             prefix === '' && !tlds.has(tld.toLowerCase())
                 ? whole
                 : boundary + host.replaceAll('.', '(.)') + path,
@@ -36,4 +46,7 @@ export const contentForPlatform = (
     content: string,
     platform: string,
     tlds: ReadonlySet<string>,
-): string => (platform === Platform.X && tlds.size > 0 ? defuseXLinks(content, tlds) : content);
+): string =>
+    platform === Platform.X && tlds.size > 0
+        ? defuseXLinks(content, tlds)
+        : content;

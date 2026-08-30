@@ -14,7 +14,9 @@ export class AddEdgeCommand implements Command {
     ) {}
 
     revert(): void {
-        this.edgesRef.value = this.edgesRef.value.filter((e) => e.id !== this.edge.id);
+        this.edgesRef.value = this.edgesRef.value.filter(
+            (e) => e.id !== this.edge.id,
+        );
     }
 
     getReverseCommand(): Command {

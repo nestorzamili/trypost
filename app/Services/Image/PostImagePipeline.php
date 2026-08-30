@@ -24,9 +24,10 @@ class PostImagePipeline
      * when the generator renders nothing.
      *
      * @param  array<string, mixed>  $structured
+     * @param  array<int, string|\Laravel\Ai\Files\Image>  $referenceImages
      * @return array<int, array<string, mixed>>
      */
-    public function forSingle(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true, ?ResolvedBrand $brand = null): array
+    public function forSingle(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true, ?ResolvedBrand $brand = null, array $referenceImages = []): array
     {
         ['width' => $width, 'height' => $height] = $this->dimensionsForContentType($contentType);
 
@@ -40,6 +41,7 @@ class PostImagePipeline
             height: $height,
             applyBrandVisuals: $applyBrandVisuals,
             brand: $brand,
+            referenceImages: $referenceImages,
         );
 
         if (! $rendered) {
@@ -54,9 +56,10 @@ class PostImagePipeline
      * that render nothing are skipped.
      *
      * @param  array<string, mixed>  $structured
+     * @param  array<int, string|\Laravel\Ai\Files\Image>  $referenceImages
      * @return array<int, array<string, mixed>>
      */
-    public function forCarousel(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true, ?ResolvedBrand $brand = null): array
+    public function forCarousel(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true, ?ResolvedBrand $brand = null, array $referenceImages = []): array
     {
         ['width' => $width, 'height' => $height] = $this->dimensionsForContentType($contentType);
 
@@ -73,6 +76,7 @@ class PostImagePipeline
                 height: $height,
                 applyBrandVisuals: $applyBrandVisuals,
                 brand: $brand,
+                referenceImages: $referenceImages,
             );
 
             if ($rendered) {
@@ -91,9 +95,10 @@ class PostImagePipeline
      * (tweet_card_image); null produces the solid brand-color background (tweet_card).
      *
      * @param  array<int, string>|null  $imageKeywords
+     * @param  array<int, string|\Laravel\Ai\Files\Image>  $referenceImages
      * @return array<int, array<string, mixed>>
      */
-    public function forTweetCard(Workspace $workspace, SocialAccount $account, string $tweetText, ?array $imageKeywords = null, ?ResolvedBrand $brand = null): array
+    public function forTweetCard(Workspace $workspace, SocialAccount $account, string $tweetText, ?array $imageKeywords = null, ?ResolvedBrand $brand = null, array $referenceImages = []): array
     {
         $rendered = $this->generator->renderTweetCard(
             workspace: $workspace,
@@ -101,6 +106,7 @@ class PostImagePipeline
             tweetText: $tweetText,
             imageKeywords: $imageKeywords,
             brand: $brand,
+            referenceImages: $referenceImages,
         );
 
         if (! $rendered) {
@@ -118,9 +124,10 @@ class PostImagePipeline
      * or an array with keys `tweet_text` and optionally `image_keywords` (image bg).
      *
      * @param  array<int, string|array<string, mixed>>  $slides
+     * @param  array<int, string|\Laravel\Ai\Files\Image>  $referenceImages
      * @return array<int, array<string, mixed>>
      */
-    public function forTweetCardCarousel(Workspace $workspace, SocialAccount $account, array $slides, ?ResolvedBrand $brand = null): array
+    public function forTweetCardCarousel(Workspace $workspace, SocialAccount $account, array $slides, ?ResolvedBrand $brand = null, array $referenceImages = []): array
     {
         $media = [];
 
@@ -139,6 +146,7 @@ class PostImagePipeline
                 tweetText: $tweetText,
                 imageKeywords: $imageKeywords,
                 brand: $brand,
+                referenceImages: $referenceImages,
             );
 
             if ($rendered) {

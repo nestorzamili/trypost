@@ -621,6 +621,8 @@ return [
             'media_count_label' => '图片数量',
             'brand_colors_label' => '品牌颜色',
             'brand_colors_description' => '将工作区的品牌配色应用到生成的图片。关闭后由 AI 选择适合内容的颜色。',
+            'brand_references_label' => '使用品牌参考照片',
+            'brand_references_description' => '根据已上传的品牌人物形象/活动照片，保持角色外貌与视觉风格一致。',
             'prompt_title' => '描述你的帖子',
             'prompt_label' => '这条帖子讲的是什么？',
             'prompt_placeholder' => '例如 为 Instagram 宣布我们全新的轮播功能',

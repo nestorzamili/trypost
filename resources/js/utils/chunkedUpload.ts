@@ -23,7 +23,9 @@ interface ChunkedUploadResult {
 
 const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
 
-export const uploadChunked = async (options: ChunkedUploadOptions): Promise<ChunkedUploadResult> => {
+export const uploadChunked = async (
+    options: ChunkedUploadOptions,
+): Promise<ChunkedUploadResult> => {
     const {
         file,
         url,
@@ -37,7 +39,9 @@ export const uploadChunked = async (options: ChunkedUploadOptions): Promise<Chun
         onError,
     } = options;
 
-    const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+    const csrfToken =
+        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.content ?? '';
     const totalSize = file.size;
     const totalChunks = Math.ceil(totalSize / chunkSize);
     const uploadId = crypto.randomUUID();
@@ -70,7 +74,8 @@ export const uploadChunked = async (options: ChunkedUploadOptions): Promise<Chun
                 signal,
             });
 
-            if (!response.ok) throw new Error(`Upload chunk failed: ${response.statusText}`);
+            if (!response.ok)
+                throw new Error(`Upload chunk failed: ${response.statusText}`);
 
             const data = await response.json();
 
@@ -86,7 +91,8 @@ export const uploadChunked = async (options: ChunkedUploadOptions): Promise<Chun
 
         throw new Error('Upload did not complete');
     } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') throw error;
+        if (error instanceof DOMException && error.name === 'AbortError')
+            throw error;
         onError?.(error);
         throw error;
     }

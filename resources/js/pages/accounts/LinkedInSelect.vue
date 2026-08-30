@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import {
-    IconBuilding,
-    IconExternalLink,
-    IconUser,
-} from '@tabler/icons-vue';
+import { IconBuilding, IconExternalLink, IconUser } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -66,7 +62,11 @@ const organizationUrl = (vanity: string | null): string | null =>
     <PopupLayout :title="$t('accounts.linkedin.select_title')">
         <div class="flex flex-col gap-6">
             <div class="flex items-center gap-3">
-                <img src="/images/accounts/linkedin.png" alt="LinkedIn" class="h-10 w-10" />
+                <img
+                    src="/images/accounts/linkedin.png"
+                    alt="LinkedIn"
+                    class="h-10 w-10"
+                />
                 <div>
                     <h1 class="text-xl font-bold tracking-tight">
                         {{ $t('accounts.linkedin.select_title') }}
@@ -78,10 +78,14 @@ const organizationUrl = (vanity: string | null): string | null =>
             </div>
 
             <div v-if="isEmpty" class="py-12 text-center">
-                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                <div
+                    class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted"
+                >
                     <IconBuilding class="h-7 w-7 text-muted-foreground" />
                 </div>
-                <h3 class="mt-4 text-lg font-semibold">{{ $t('accounts.linkedin.no_pages') }}</h3>
+                <h3 class="mt-4 text-lg font-semibold">
+                    {{ $t('accounts.linkedin.no_pages') }}
+                </h3>
                 <p class="mt-1 text-sm text-muted-foreground">
                     {{ $t('accounts.linkedin.no_pages_description') }}
                 </p>
@@ -93,14 +97,24 @@ const organizationUrl = (vanity: string | null): string | null =>
                     class="flex items-center gap-4 rounded-lg border bg-card p-4"
                 >
                     <Avatar class="h-12 w-12 shrink-0 rounded-lg">
-                        <AvatarImage v-if="person.avatar" :src="person.avatar" class="object-cover" />
-                        <AvatarFallback class="rounded-lg bg-blue-100 dark:bg-blue-900">
-                            <IconUser class="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        <AvatarImage
+                            v-if="person.avatar"
+                            :src="person.avatar"
+                            class="object-cover"
+                        />
+                        <AvatarFallback
+                            class="rounded-lg bg-blue-100 dark:bg-blue-900"
+                        >
+                            <IconUser
+                                class="h-6 w-6 text-blue-600 dark:text-blue-400"
+                            />
                         </AvatarFallback>
                     </Avatar>
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                            <h3 class="truncate font-semibold">{{ person.name }}</h3>
+                            <h3 class="truncate font-semibold">
+                                {{ person.name }}
+                            </h3>
                             <span
                                 class="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
                             >
@@ -108,7 +122,10 @@ const organizationUrl = (vanity: string | null): string | null =>
                                 {{ $t('accounts.linkedin.person_tag') }}
                             </span>
                         </div>
-                        <p v-if="person.vanity_name" class="truncate text-sm text-muted-foreground">
+                        <p
+                            v-if="person.vanity_name"
+                            class="truncate text-sm text-muted-foreground"
+                        >
                             linkedin.com/in/{{ person.vanity_name }}
                         </p>
                     </div>
@@ -120,9 +137,15 @@ const organizationUrl = (vanity: string | null): string | null =>
                             @click="openExternal(personUrl(person.vanity_name))"
                         >
                             <IconExternalLink class="h-4 w-4" />
-                            <span class="hidden sm:inline">{{ $t('accounts.linkedin.view') }}</span>
+                            <span class="hidden sm:inline">{{
+                                $t('accounts.linkedin.view')
+                            }}</span>
                         </Button>
-                        <Button size="sm" :disabled="form.processing" @click="choosePerson">
+                        <Button
+                            size="sm"
+                            :disabled="form.processing"
+                            @click="choosePerson"
+                        >
                             {{ $t('accounts.linkedin.choose') }}
                         </Button>
                     </div>
@@ -134,14 +157,24 @@ const organizationUrl = (vanity: string | null): string | null =>
                     class="flex items-center gap-4 rounded-lg border bg-card p-4"
                 >
                     <Avatar class="h-12 w-12 shrink-0 rounded-lg">
-                        <AvatarImage v-if="org.logo" :src="org.logo" class="object-cover" />
-                        <AvatarFallback class="rounded-lg bg-blue-100 dark:bg-blue-900">
-                            <IconBuilding class="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        <AvatarImage
+                            v-if="org.logo"
+                            :src="org.logo"
+                            class="object-cover"
+                        />
+                        <AvatarFallback
+                            class="rounded-lg bg-blue-100 dark:bg-blue-900"
+                        >
+                            <IconBuilding
+                                class="h-6 w-6 text-blue-600 dark:text-blue-400"
+                            />
                         </AvatarFallback>
                     </Avatar>
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                            <h3 class="truncate font-semibold">{{ org.name }}</h3>
+                            <h3 class="truncate font-semibold">
+                                {{ org.name }}
+                            </h3>
                             <span
                                 class="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
                             >
@@ -149,7 +182,10 @@ const organizationUrl = (vanity: string | null): string | null =>
                                 {{ $t('accounts.linkedin.organization_tag') }}
                             </span>
                         </div>
-                        <p v-if="org.vanity_name" class="truncate text-sm text-muted-foreground">
+                        <p
+                            v-if="org.vanity_name"
+                            class="truncate text-sm text-muted-foreground"
+                        >
                             linkedin.com/company/{{ org.vanity_name }}
                         </p>
                     </div>
@@ -158,12 +194,20 @@ const organizationUrl = (vanity: string | null): string | null =>
                             v-if="organizationUrl(org.vanity_name)"
                             variant="ghost"
                             size="sm"
-                            @click="openExternal(organizationUrl(org.vanity_name))"
+                            @click="
+                                openExternal(organizationUrl(org.vanity_name))
+                            "
                         >
                             <IconExternalLink class="h-4 w-4" />
-                            <span class="hidden sm:inline">{{ $t('accounts.linkedin.view') }}</span>
+                            <span class="hidden sm:inline">{{
+                                $t('accounts.linkedin.view')
+                            }}</span>
                         </Button>
-                        <Button size="sm" :disabled="form.processing" @click="chooseOrganization(org)">
+                        <Button
+                            size="sm"
+                            :disabled="form.processing"
+                            @click="chooseOrganization(org)"
+                        >
                             {{ $t('accounts.linkedin.choose') }}
                         </Button>
                     </div>

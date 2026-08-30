@@ -116,6 +116,7 @@ class TweetCardTemplate implements AiContentTemplate
                 account: $context->socialAccount,
                 tweetText: $text,
                 brand: $context->brand,
+                referenceImages: $context->referenceImages,
             );
         }
 
@@ -146,6 +147,7 @@ class TweetCardTemplate implements AiContentTemplate
                 account: $context->socialAccount,
                 slides: $slideTexts,
                 brand: $context->brand,
+                referenceImages: $context->referenceImages,
             );
         }
 

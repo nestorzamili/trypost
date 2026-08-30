@@ -621,6 +621,9 @@ return [
             'media_count_label' => 'Aantal afbeeldingen',
             'brand_colors_label' => 'Merkkleuren',
             'brand_colors_description' => 'Pas het merkkleurenpalet van je workspace toe op de gegenereerde afbeeldingen. Zet het uit om de AI kleuren te laten kiezen die bij de inhoud passen.',
+            
+            "brand_references_label" => "Use Brand Reference Photos",
+            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
             'prompt_title' => 'Beschrijf je post',
             'prompt_label' => 'Waar gaat deze post over?',
             'prompt_placeholder' => 'bijv. Kondig onze nieuwe carrouselfunctie voor Instagram aan',

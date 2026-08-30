@@ -11,6 +11,7 @@ import type {
     BrandVariantLanguage,
     ContentLanguageOption,
 } from '@/types';
+import type { MediaItem } from '@/types/media';
 
 interface Workspace {
     id: string;
@@ -30,6 +31,7 @@ interface Workspace {
 
 defineProps<{
     workspace: Workspace;
+    brandReferences?: MediaItem[];
     availableFonts: string[];
     availableImageStyles: string[];
     availableVoiceTraits: Record<string, string[]>;
@@ -54,6 +56,7 @@ const tabs = useWorkspaceSettingsTabs();
 
             <BrandTab
                 :workspace="workspace"
+                :brand-references="brandReferences ?? []"
                 :available-fonts="availableFonts"
                 :available-image-styles="availableImageStyles"
                 :available-voice-traits="availableVoiceTraits"

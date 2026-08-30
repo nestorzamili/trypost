@@ -623,6 +623,9 @@ return [
             'media_count_label' => 'Görsel sayısı',
             'brand_colors_label' => 'Marka renkleri',
             'brand_colors_description' => 'Oluşturulan görsellere çalışma alanınızın marka paletini uygular. Yapay zekânın içeriğe uygun renkleri seçmesi için kapatın.',
+            
+            "brand_references_label" => "Use Brand Reference Photos",
+            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
             'prompt_title' => 'Gönderinizi açıklayın',
             'prompt_label' => 'Bu gönderi ne hakkında?',
             'prompt_placeholder' => 'örn. Instagram için yeni karusel özelliğimizi duyur',

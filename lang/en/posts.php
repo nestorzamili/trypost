@@ -621,6 +621,8 @@ return [
             'media_count_label' => 'Number of images',
             'brand_colors_label' => 'Brand colors',
             'brand_colors_description' => 'Apply your workspace brand palette to the generated images. Turn it off to let the AI pick colors that fit the content.',
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => 'Describe your post',
             'prompt_label' => 'What is this post about?',
             'prompt_placeholder' => 'e.g. Announce our new carousel feature for Instagram',

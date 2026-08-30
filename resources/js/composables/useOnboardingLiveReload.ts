@@ -15,7 +15,7 @@ export const useOnboardingLiveReload = (options: {
     const pollMs = options.pollMs ?? 30_000;
 
     useWorkspaceEcho('.onboarding.status.updated', () => {
-        if (! toEnabled(options.enabled)) {
+        if (!toEnabled(options.enabled)) {
             return;
         }
 

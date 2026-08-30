@@ -259,6 +259,13 @@ return [
             'variant_updated' => 'Brand variant updated.',
             'variant_deleted' => 'Brand variant deleted.',
         ],
+        
+        "reference_photos_title" => "Brand Reference Photos & Persona",
+        "reference_photos_description" => "Upload reference photos of your brand founder, persona (e.g. Sara), or activities. AI image generation will use these to maintain consistent character likeness and visual style.",
+        "upload_reference_photo" => "Add Reference Photo",
+        "no_reference_photos" => "No reference photos uploaded yet",
+        "no_reference_photos_hint" => "Add 1–5 clear portrait, close-up, or activity photos of your persona to give the AI visual reference for post and slide image generation.",
+        "upload_first_photo" => "Upload Reference Photo",
         'content_language' => '콘텐츠 언어',
         'content_language_description' => 'AI가 생성하는 캡션, 해시태그, 생성된 이미지나 동영상 내 텍스트에 사용되는 언어입니다.',
         'font_placeholder' => '글꼴 선택…',

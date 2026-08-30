@@ -22,5 +22,6 @@ class TemplateContext
         public bool $applyBrandVisuals = true,
         public ?string $languageCode = null,
         public ?ResolvedBrand $brand = null,
+        public array $referenceImages = [],
     ) {}
 }

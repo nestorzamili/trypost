@@ -51,7 +51,9 @@ const props = withDefaults(
 const telegramOpen = ref(false);
 const telegramReconnectId = ref<string>();
 const instagramOpen = ref(false);
-const disconnectModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
+const disconnectModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
+    null,
+);
 
 const { openOAuthPopup } = useOAuthPopup((result) => {
     if (result.success) {
@@ -100,10 +102,9 @@ const disconnectAccount = (account: ConnectedAccount) => {
 
 const instagramMethods = computed(
     () =>
-        props.platforms.find((platform) => platform.value === Platform.Instagram)?.connect_methods ?? [
-            Platform.Instagram,
-            Platform.InstagramFacebook,
-        ],
+        props.platforms.find(
+            (platform) => platform.value === Platform.Instagram,
+        )?.connect_methods ?? [Platform.Instagram, Platform.InstagramFacebook],
 );
 
 interface ConnectCard {
@@ -122,7 +123,9 @@ const cards = computed<ConnectCard[]>(() => {
     const allowMultiple = Boolean(page.props.allowMultipleSocialAccounts);
 
     return props.platforms.flatMap((platform) => {
-        const accounts = props.connectedAccounts.filter((account) => account.network === platform.network);
+        const accounts = props.connectedAccounts.filter(
+            (account) => account.network === platform.network,
+        );
         const theme = getPlatformTheme(platform.value);
         const title = platform.label.split('(')[0].trim();
 
@@ -211,7 +214,9 @@ const cards = computed<ConnectCard[]>(() => {
                 </div>
 
                 <div class="w-full min-w-0 flex-1">
-                    <span class="block truncate text-sm font-semibold text-foreground">
+                    <span
+                        class="block truncate text-sm font-semibold text-foreground"
+                    >
                         {{ card.title }}
                     </span>
                     <p
@@ -238,7 +243,9 @@ const cards = computed<ConnectCard[]>(() => {
                     v-if="card.state === 'reconnect' && card.account"
                     size="sm"
                     class="mt-auto w-full"
-                    @click="startConnect(card.account.platform, card.account.id)"
+                    @click="
+                        startConnect(card.account.platform, card.account.id)
+                    "
                 >
                     {{ $t('accounts.reconnect') }}
                 </Button>

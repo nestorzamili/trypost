@@ -52,9 +52,7 @@ const submit = (): void => {
         />
 
         <div class="mx-auto flex w-full max-w-sm flex-col items-center gap-3">
-            <InputError
-                :message="form.errors.connect"
-            />
+            <InputError :message="form.errors.connect" />
             <Button as-child size="lg" class="w-full rounded-full">
                 <button
                     type="button"

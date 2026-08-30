@@ -48,17 +48,22 @@ const { contentFor } = useXLinkDefuser();
  * promises text the network never receives. Every preview goes through here, which
  * keeps the rewrite in one place on the client just as it is on the server.
  */
-const previewContent = computed((): string => contentFor(props.content, props.platform));
+const previewContent = computed((): string =>
+    contentFor(props.content, props.platform),
+);
 
-const resolvedSocialAccount = computed((): SocialAccount => props.socialAccount ?? {
-    id: '',
-    platform: props.platform,
-    display_name: '',
-    username: '',
-    display_label: getPlatformLabel(props.platform),
-    handle_label: getPlatformLabel(props.platform),
-    avatar_url: null,
-});
+const resolvedSocialAccount = computed(
+    (): SocialAccount =>
+        props.socialAccount ?? {
+            id: '',
+            platform: props.platform,
+            display_name: '',
+            username: '',
+            display_label: getPlatformLabel(props.platform),
+            handle_label: getPlatformLabel(props.platform),
+            avatar_url: null,
+        },
+);
 
 const previewComponent = computed(() => {
     switch (props.platform) {

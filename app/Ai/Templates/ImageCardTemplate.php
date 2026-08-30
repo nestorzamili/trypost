@@ -120,6 +120,7 @@ class ImageCardTemplate implements AiContentTemplate
                 contentType: ContentType::InstagramFeed,
                 applyBrandVisuals: $context->applyBrandVisuals,
                 brand: $context->brand,
+                referenceImages: $context->referenceImages,
             );
         }
 
@@ -146,6 +147,7 @@ class ImageCardTemplate implements AiContentTemplate
                 contentType: $contentType,
                 applyBrandVisuals: $context->applyBrandVisuals,
                 brand: $context->brand,
+                referenceImages: $context->referenceImages,
             );
         }
 

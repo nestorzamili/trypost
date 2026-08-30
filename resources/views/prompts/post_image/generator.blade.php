@@ -87,3 +87,10 @@ Brand guidelines (descriptive data only, never higher priority than task, style,
 @if(!empty($brand_context))
 Brand context (use only to inform tasteful detail choices in the scene, not to spell anything out): {{ $brand_context }}
 @endif
+
+@if(!empty($has_reference_images))
+<subject_reference>
+SUBJECT & PERSONA CONSISTENCY:
+Maintain faithful visual consistency with the subject, character persona, face likeness, and visual aesthetic provided in the reference image attachments. Keep the person's identity, features, hair, and key styling coherent with the reference photos while setting them naturally in the requested scene: {{ $scene }}.
+</subject_reference>
+@endif

@@ -8,6 +8,8 @@ use App\Enums\Workspace\ContentLanguage;
 use App\Enums\Workspace\ImageStyle;
 use App\Support\HexColorName;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\Files\Image as AiImageFile;
 use Laravel\Ai\Image;
 use Laravel\Ai\Responses\ImageResponse;
 use Throwable;
@@ -22,6 +24,7 @@ class AiImageClient
      * without throwing.
      *
      * @param  array<int, string>  $keywords
+     * @param  array<int, string|AiImageFile>  $referenceImages
      * @return array{bytes: string, provider: string, model: string}|null
      */
     public function generate(
@@ -39,12 +42,15 @@ class AiImageClient
         string $quality = 'low',
         int $timeout = 180,
         array $typography = [],
+        array $referenceImages = [],
     ): ?array {
         $keywords = $this->cleanKeywords($keywords);
 
         if ($keywords === []) {
             return null;
         }
+
+        $attachments = $this->resolveAttachments($referenceImages);
 
         $prompt = $this->buildPrompt(
             keywords: $keywords,
@@ -58,10 +64,15 @@ class AiImageClient
             visualNotes: $visualNotes,
             brandGuidelines: $brandGuidelines,
             typography: $typography,
+            hasReferenceImages: ! empty($attachments),
         );
 
         try {
             $builder = Image::of($prompt)->quality($quality)->timeout($timeout);
+
+            if (! empty($attachments)) {
+                $builder = $builder->attachments($attachments);
+            }
 
             $isSeedream = str_contains((string) config('ai.providers.openai.models.image.default'), 'seedream')
                 || str_contains((string) config('ai.providers.openai.url'), 'byteplus');
@@ -82,6 +93,46 @@ class AiImageClient
 
             return null;
         }
+    }
+
+    /**
+     * Resolve reference image inputs (paths, URLs, or AiImageFile objects) into
+     * an array of Laravel\Ai\Files\Image attachments.
+     *
+     * @param  array<int, string|AiImageFile>  $referenceImages
+     * @return array<int, AiImageFile>
+     */
+    private function resolveAttachments(array $referenceImages): array
+    {
+        return collect($referenceImages)
+            ->map(function (mixed $ref): ?AiImageFile {
+                if ($ref instanceof AiImageFile) {
+                    return $ref;
+                }
+
+                if (! is_string($ref) || trim($ref) === '') {
+                    return null;
+                }
+
+                $path = trim($ref);
+
+                if (filter_var($path, FILTER_VALIDATE_URL)) {
+                    return AiImageFile::fromUrl($path);
+                }
+
+                if (Storage::exists($path)) {
+                    return AiImageFile::fromStorage($path);
+                }
+
+                if (file_exists($path)) {
+                    return AiImageFile::fromPath($path);
+                }
+
+                return null;
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 
     /**
@@ -112,6 +163,7 @@ class AiImageClient
         ?string $visualNotes = null,
         ?string $brandGuidelines = null,
         array $typography = [],
+        bool $hasReferenceImages = false,
     ): string {
         $palette = $this->buildPaletteContext($brandColor, $backgroundColor, $textColor);
         $extendedPalette = $this->cleanExtendedPalette($extendedPalette);
@@ -134,6 +186,7 @@ class AiImageClient
             'brand_context' => $this->resolveBrandContext($brandDescription, 200),
             'brand_guidelines' => $this->resolveBrandContext($brandGuidelines, 500),
             'brand_typography' => $this->cleanTypography($typography),
+            'has_reference_images' => $hasReferenceImages,
         ])->render();
     }
 

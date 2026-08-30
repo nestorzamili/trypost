@@ -14,7 +14,10 @@ interface ErrorEvent {
 
 export type AiStreamStatus = 'idle' | 'streaming' | 'completed' | 'failed';
 
-export const aiGenerationChannel = (userId: string, generationId: string): string => `user.${userId}.ai-gen.${generationId}`;
+export const aiGenerationChannel = (
+    userId: string,
+    generationId: string,
+): string => `user.${userId}.ai-gen.${generationId}`;
 
 /**
  * Subscribe to a private channel for an in-flight AI generation.
@@ -56,7 +59,9 @@ export const useAiStream = () => {
                 })
                 .listen('.error', (e: ErrorEvent) => {
                     status.value = 'failed';
-                    errorMessage.value = e?.message ?? trans('posts.ai.generate.errors.generation_failed');
+                    errorMessage.value =
+                        e?.message ??
+                        trans('posts.ai.generate.errors.generation_failed');
                 });
         });
     };

@@ -14,6 +14,7 @@ use App\Enums\Workspace\ImageStyle;
 use App\Http\Requests\App\Workspace\AutofillBrandRequest;
 use App\Http\Requests\App\Workspace\StoreWorkspaceRequest;
 use App\Http\Requests\App\Workspace\UpdateWorkspaceRequest;
+use App\Http\Resources\App\MediaResource;
 use App\Http\Resources\App\WorkspaceMemberResource;
 use App\Models\Invite;
 use App\Models\User;
@@ -193,6 +194,7 @@ class WorkspaceController extends Controller
 
         return Inertia::render('settings/workspace/Brand', [
             'workspace' => $workspace->load('brandVariants'),
+            'brandReferences' => MediaResource::collection($workspace->getMedia('brand_references')->latest()->get()),
             'variantLanguages' => collect([
                 ['code' => 'en', 'label' => 'English Content'],
                 ['code' => 'zh', 'label' => 'Chinese Content'],

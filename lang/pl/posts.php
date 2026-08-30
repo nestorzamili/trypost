@@ -621,6 +621,9 @@ return [
             'media_count_label' => 'Liczba obrazów',
             'brand_colors_label' => 'Kolory marki',
             'brand_colors_description' => 'Zastosuj paletę marki Twojego obszaru roboczego do generowanych obrazów. Wyłącz, aby AI dobrała kolory pasujące do treści.',
+            
+            "brand_references_label" => "Use Brand Reference Photos",
+            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
             'prompt_title' => 'Opisz swój post',
             'prompt_label' => 'O czym jest ten post?',
             'prompt_placeholder' => 'np. Ogłoś naszą nową funkcję karuzeli na Instagramie',

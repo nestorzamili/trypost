@@ -49,9 +49,7 @@ const selectedWorkspace = ref<WorkspaceOption | undefined>(
     ) ?? props.workspaces[0],
 );
 
-const workspaceIdForSubmit = computed(
-    () => selectedWorkspace.value?.id ?? '',
-);
+const workspaceIdForSubmit = computed(() => selectedWorkspace.value?.id ?? '');
 
 const canApprove = computed(() => workspaceIdForSubmit.value !== '');
 
@@ -79,7 +77,7 @@ const scopeLabel = (scope: Scope): string =>
         : scope.description;
 
 const onApproveSubmit = (event: Event): void => {
-    if (! canApprove.value) {
+    if (!canApprove.value) {
         event.preventDefault();
 
         return;
@@ -166,9 +164,7 @@ const onDenySubmit = (): void => {
                     </ComboboxAnchor>
                     <ComboboxList>
                         <ComboboxInput
-                            :placeholder="
-                                $t('mcp.authorize.search_workspace')
-                            "
+                            :placeholder="$t('mcp.authorize.search_workspace')"
                         />
                         <ComboboxEmpty>
                             {{ $t('mcp.authorize.no_workspace_found') }}
@@ -251,11 +247,7 @@ const onDenySubmit = (): void => {
                 <input type="hidden" name="state" :value="state" />
                 <input type="hidden" name="client_id" :value="client.id" />
                 <input type="hidden" name="auth_token" :value="authToken" />
-                <Button
-                    type="submit"
-                    variant="outline"
-                    class="w-full"
-                >
+                <Button type="submit" variant="outline" class="w-full">
                     {{ $t('mcp.authorize.cancel') }}
                 </Button>
             </form>

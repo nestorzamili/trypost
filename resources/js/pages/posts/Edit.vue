@@ -23,7 +23,10 @@ import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import date from '@/date';
 import debounce from '@/debounce';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { destroy as destroyPost, update as updatePost } from '@/routes/app/posts';
+import {
+    destroy as destroyPost,
+    update as updatePost,
+} from '@/routes/app/posts';
 import type { PinterestBoardsPayload } from '@/types';
 import type { MediaItem } from '@/types/media';
 import { PostStatus } from '@/types/post';
@@ -103,10 +106,16 @@ const READONLY_STATUSES: readonly string[] = [
     PostStatus.PartiallyPublished,
     PostStatus.Failed,
 ];
-const isReadOnly = computed(() => READONLY_STATUSES.includes(post.value.status));
-const isPublishing = computed(() => post.value.status === PostStatus.Publishing);
+const isReadOnly = computed(() =>
+    READONLY_STATUSES.includes(post.value.status),
+);
+const isPublishing = computed(
+    () => post.value.status === PostStatus.Publishing,
+);
 const isScheduled = computed(() => post.value.status === PostStatus.Scheduled);
-const isLocked = computed(() => isReadOnly.value || isScheduled.value || !canCreatePost.value);
+const isLocked = computed(
+    () => isReadOnly.value || isScheduled.value || !canCreatePost.value,
+);
 
 // Content
 const content = ref(post.value.content || '');
@@ -119,7 +128,9 @@ const selectedPlatformIds = ref<string[]>(
 
 // Per-platform meta (TikTok settings, Pinterest board, etc.)
 const platformMeta = ref<Record<string, Record<string, any>>>(
-    Object.fromEntries(post.value.post_platforms.map((pp) => [pp.id, { ...(pp.meta ?? {}) }])),
+    Object.fromEntries(
+        post.value.post_platforms.map((pp) => [pp.id, { ...(pp.meta ?? {}) }]),
+    ),
 );
 
 const updatePlatformMeta = (platformId: string, meta: Record<string, any>) => {
@@ -128,11 +139,16 @@ const updatePlatformMeta = (platformId: string, meta: Record<string, any>) => {
 
 // Per-platform content_type (Instagram Feed/Reel/Story, Facebook Post/Reel/Story, etc.)
 const platformContentTypes = ref<Record<string, string>>(
-    Object.fromEntries(post.value.post_platforms.map((pp) => [pp.id, pp.content_type ?? ''])),
+    Object.fromEntries(
+        post.value.post_platforms.map((pp) => [pp.id, pp.content_type ?? '']),
+    ),
 );
 
 const updatePlatformContentType = (platformId: string, contentType: string) => {
-    platformContentTypes.value = { ...platformContentTypes.value, [platformId]: contentType };
+    platformContentTypes.value = {
+        ...platformContentTypes.value,
+        [platformId]: contentType,
+    };
 };
 
 const {
@@ -152,18 +168,22 @@ const {
 });
 
 // Schedule
-const scheduledDateTime = ref(date.formatUtcForDateTimeLocalInput(post.value.scheduled_at));
+const scheduledDateTime = ref(
+    date.formatUtcForDateTimeLocalInput(post.value.scheduled_at),
+);
 const hasPickedTime = ref(Boolean(post.value.scheduled_at));
 
 const pickTimeLabel = computed(() => {
-    if (! hasPickedTime.value || ! scheduledDateTime.value) {
+    if (!hasPickedTime.value || !scheduledDateTime.value) {
         return trans('posts.edit.pick_time');
     }
     return date.formatLocalDateTime(scheduledDateTime.value);
 });
 
 // Labels
-const selectedLabelIds = ref<string[]>(post.value.labels?.map((l) => l.id) || []);
+const selectedLabelIds = ref<string[]>(
+    post.value.labels?.map((l) => l.id) || [],
+);
 
 // UI state
 const isSubmitting = ref(false);
@@ -187,22 +207,32 @@ const onOpenAiRegenerateImage = (mediaId: string) => {
     isAiRegenerateImageOpen.value = true;
 };
 
-const selectedAiMediaItem = computed(() => (
+const selectedAiMediaItem = computed(() =>
     selectedAiMediaId.value
-        ? (media.value.find((item) => item.id === selectedAiMediaId.value) ?? null)
-        : null
-));
+        ? (media.value.find((item) => item.id === selectedAiMediaId.value) ??
+          null)
+        : null,
+);
 
-const onAiMediaRegenerated = (payload: { media: MediaItem; targetMediaId: string }) => {
-    media.value = media.value.map((item) => (
-        item.id === payload.targetMediaId ? payload.media : item
-    ));
+const onAiMediaRegenerated = (payload: {
+    media: MediaItem;
+    targetMediaId: string;
+}) => {
+    media.value = media.value.map((item) =>
+        item.id === payload.targetMediaId ? payload.media : item,
+    );
 };
 
 const isPostActionDisabled = computed(
-    () => isSubmitting.value || selectedPlatformIds.value.length === 0 || !canSchedule.value,
+    () =>
+        isSubmitting.value ||
+        selectedPlatformIds.value.length === 0 ||
+        !canSchedule.value,
 );
-const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+const queryParams =
+    typeof window !== 'undefined'
+        ? new URLSearchParams(window.location.search)
+        : null;
 const initialTabFromQuery = (() => {
     const tab = queryParams?.get('tab');
     if (['preview', 'schedule', 'comments'].includes(tab ?? '')) {
@@ -242,14 +272,19 @@ const snapToCompatibleVariant = (platformId: string) => {
     const fallback = firstCompatibleVariant(pp.platform, media.value);
     if (!fallback) return;
 
-    platformContentTypes.value = { ...platformContentTypes.value, [platformId]: fallback };
+    platformContentTypes.value = {
+        ...platformContentTypes.value,
+        [platformId]: fallback,
+    };
 };
 
 const togglePlatform = (platformId: string) => {
     if (isLocked.value) return;
 
     if (selectedPlatformIds.value.includes(platformId)) {
-        selectedPlatformIds.value = selectedPlatformIds.value.filter((id) => id !== platformId);
+        selectedPlatformIds.value = selectedPlatformIds.value.filter(
+            (id) => id !== platformId,
+        );
         return;
     }
 
@@ -284,19 +319,25 @@ const save = () => {
     isSaving.value = true;
     showSaved.value = false;
 
-    router.put(updatePost.url(post.value.id), {
-        status: post.value.status,
-        ...data,
-    }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            showSaved.value = true;
-            setTimeout(() => { showSaved.value = false; }, 2000);
+    router.put(
+        updatePost.url(post.value.id),
+        {
+            status: post.value.status,
+            ...data,
         },
-        onFinish: () => {
-            isSaving.value = false;
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                showSaved.value = true;
+                setTimeout(() => {
+                    showSaved.value = false;
+                }, 2000);
+            },
+            onFinish: () => {
+                isSaving.value = false;
+            },
         },
-    });
+    );
 };
 
 const debouncedSave = debounce(() => {
@@ -312,7 +353,19 @@ const triggerAutosave = () => {
     }
 };
 
-watch([content, media, selectedPlatformIds, scheduledDateTime, selectedLabelIds, platformMeta, platformContentTypes], triggerAutosave, { deep: true });
+watch(
+    [
+        content,
+        media,
+        selectedPlatformIds,
+        scheduledDateTime,
+        selectedLabelIds,
+        platformMeta,
+        platformContentTypes,
+    ],
+    triggerAutosave,
+    { deep: true },
+);
 
 onUnmounted(() => {
     debouncedSave.cancel();
@@ -325,12 +378,18 @@ const submit = (status: string = PostStatus.Scheduled) => {
     const data = getSubmitData();
     isSubmitting.value = true;
 
-    router.put(updatePost.url(post.value.id), {
-        status,
-        ...data,
-    }, {
-        onFinish: () => { isSubmitting.value = false; },
-    });
+    router.put(
+        updatePost.url(post.value.id),
+        {
+            status,
+            ...data,
+        },
+        {
+            onFinish: () => {
+                isSubmitting.value = false;
+            },
+        },
+    );
 };
 
 const toggleLabel = (labelId: string) => {
@@ -362,7 +421,6 @@ usePostEcho(post.value.id, '.post.platform.status.updated', () => {
     router.reload({ only: ['post'] });
 });
 
-
 // Echo: listen for real-time comments
 usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
     if (e.mentioned_users) {
@@ -376,7 +434,7 @@ usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
     <Head :title="$t('posts.edit.title')" />
 
     <AppLayout :full-width="true">
-        <div class="flex flex-col flex-1 min-h-0">
+        <div class="flex min-h-0 flex-1 flex-col">
             <!-- On mobile the status moves into the switcher and the actions into the
                  bottom bar, so the header is desktop-only — except the scheduled banner,
                  which stays as the locked-state explanation. -->
@@ -408,22 +466,32 @@ usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
                     v-if="isPublishing"
                     class="absolute inset-0 z-40 flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-sm"
                 >
-                    <div class="inline-flex size-14 -rotate-3 items-center justify-center rounded-2xl border-2 border-foreground bg-violet-200 shadow-2xs">
-                        <IconLoader2 class="size-7 animate-spin text-foreground" stroke-width="2" />
+                    <div
+                        class="inline-flex size-14 -rotate-3 items-center justify-center rounded-2xl border-2 border-foreground bg-violet-200 shadow-2xs"
+                    >
+                        <IconLoader2
+                            class="size-7 animate-spin text-foreground"
+                            stroke-width="2"
+                        />
                     </div>
                     <div class="text-center">
                         <p
-                            class="text-2xl font-semibold leading-tight text-foreground"
+                            class="text-2xl leading-tight font-semibold text-foreground"
                             style="font-family: var(--font-display)"
                         >
                             {{ $t('posts.edit.publishing_overlay_title') }}
                         </p>
-                        <p class="mt-1 text-sm text-foreground/70">{{ $t('posts.edit.publishing_overlay_subtitle') }}</p>
+                        <p class="mt-1 text-sm text-foreground/70">
+                            {{ $t('posts.edit.publishing_overlay_subtitle') }}
+                        </p>
                     </div>
                 </div>
                 <div
                     class="flex h-full"
-                    :class="{ 'pointer-events-none select-none opacity-60': isScheduled }"
+                    :class="{
+                        'pointer-events-none opacity-60 select-none':
+                            isScheduled,
+                    }"
                 >
                     <div
                         class="w-full overflow-y-auto lg:w-2/3 lg:border-r-2 lg:border-foreground"
@@ -465,12 +533,16 @@ usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
                             :pinterest-boards="pinterestBoards"
                             :is-read-only="isLocked"
                             :auth-user-id="authUserId"
-                            :initial-highlight-comment-id="initialHighlightCommentId"
+                            :initial-highlight-comment-id="
+                                initialHighlightCommentId
+                            "
                             :posted-at="scheduledDateTime || null"
                             @toggle-platform="togglePlatform"
                             @toggle-label="toggleLabel"
                             @update:platform-meta="updatePlatformMeta"
-                            @update:platform-content-type="updatePlatformContentType"
+                            @update:platform-content-type="
+                                updatePlatformContentType
+                            "
                         />
                     </div>
                 </div>

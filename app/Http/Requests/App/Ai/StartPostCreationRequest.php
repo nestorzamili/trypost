@@ -39,6 +39,9 @@ class StartPostCreationRequest extends FormRequest
             'date' => ['nullable', 'date_format:Y-m-d'],
             'template' => ['sometimes', 'string', Rule::enum(ContentStyle::class)],
             'apply_brand_visuals' => ['sometimes', 'boolean'],
+            'reference_media_ids' => ['sometimes', 'array'],
+            'reference_media_ids.*' => ['required', 'string', 'uuid'],
+            'use_brand_references' => ['sometimes', 'boolean'],
         ];
     }
 

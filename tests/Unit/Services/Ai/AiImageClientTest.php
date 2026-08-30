@@ -261,3 +261,24 @@ test('generate uses high resolution 2K sizes when BytePlus Seedream is configure
     'landscape' => ['landscape', '2496x1664'],
 ]);
 
+test('generate attaches reference images and adds subject consistency prompt instructions', function () {
+    \Illuminate\Support\Facades\Storage::fake();
+    \Illuminate\Support\Facades\Storage::put('medias/sara_reference.jpg', 'fake-image-data');
+
+    Image::fake();
+
+    $client = new AiImageClient;
+    $client->generate(
+        keywords: ['Sara presenting digital transformation'],
+        style: ImageStyle::Cinematic,
+        referenceImages: ['medias/sara_reference.jpg'],
+    );
+
+    Image::assertGenerated(function (ImagePrompt $prompt) {
+        return count($prompt->attachments) === 1
+            && $prompt->attachments[0]->path === 'medias/sara_reference.jpg'
+            && $prompt->contains('SUBJECT & PERSONA CONSISTENCY')
+            && $prompt->contains('Maintain faithful visual consistency with the subject');
+    });
+});
+

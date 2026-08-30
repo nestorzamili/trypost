@@ -259,6 +259,13 @@ return [
             'variant_updated' => 'Brand variant updated.',
             'variant_deleted' => 'Brand variant deleted.',
         ],
+        
+        "reference_photos_title" => "Brand Reference Photos & Persona",
+        "reference_photos_description" => "Upload reference photos of your brand founder, persona (e.g. Sara), or activities. AI image generation will use these to maintain consistent character likeness and visual style.",
+        "upload_reference_photo" => "Add Reference Photo",
+        "no_reference_photos" => "No reference photos uploaded yet",
+        "no_reference_photos_hint" => "Add 1–5 clear portrait, close-up, or activity photos of your persona to give the AI visual reference for post and slide image generation.",
+        "upload_first_photo" => "Upload Reference Photo",
         'content_language' => 'Lingua dei contenuti',
         'content_language_description' => 'Lingua usata per didascalie, hashtag generati dall\'IA e qualsiasi testo all\'interno di immagini o video generati.',
         'font_placeholder' => 'Seleziona un font…',

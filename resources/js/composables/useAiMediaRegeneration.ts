@@ -28,18 +28,26 @@ interface UseAiMediaRegenerationOptions {
     onCompleted?: () => void;
 }
 
-const aiMediaRegenerationChannel = (userId: string, regenerationId: string): string => `user.${userId}.ai-media.${regenerationId}`;
+const aiMediaRegenerationChannel = (
+    userId: string,
+    regenerationId: string,
+): string => `user.${userId}.ai-media.${regenerationId}`;
 
 const REGENERATION_TIMEOUT_MS = 180_000;
 
-export const useAiMediaRegeneration = (options: UseAiMediaRegenerationOptions) => {
+export const useAiMediaRegeneration = (
+    options: UseAiMediaRegenerationOptions,
+) => {
     const page = usePage();
     const instruction = ref('');
     const errorMessage = ref<string | null>(null);
     const instructionError = ref<string | undefined>(undefined);
     const status = ref<RegenerationStatus>('idle');
 
-    const httpRegenerate = useHttp<{ instruction: string; regeneration_id: string }>({
+    const httpRegenerate = useHttp<{
+        instruction: string;
+        regeneration_id: string;
+    }>({
         instruction: '',
         regeneration_id: '',
     });
@@ -51,7 +59,9 @@ export const useAiMediaRegeneration = (options: UseAiMediaRegenerationOptions) =
     const isBusy = computed(() => status.value !== 'idle');
     const isProcessing = computed(() => status.value === 'processing');
     const normalizedInstruction = computed(() => instruction.value.trim());
-    const canSubmit = computed(() => normalizedInstruction.value.length > 0 && !isBusy.value);
+    const canSubmit = computed(
+        () => normalizedInstruction.value.length > 0 && !isBusy.value,
+    );
 
     const unsubscribe = () => {
         if (subscribedChannel) {
@@ -92,7 +102,10 @@ export const useAiMediaRegeneration = (options: UseAiMediaRegenerationOptions) =
 
         const mediaItem = options.getMediaItem();
         if (event.error || !event.media || !mediaItem) {
-            setIdleWithError(event.error ?? trans('posts.ai.image_regenerate.errors.unavailable'));
+            setIdleWithError(
+                event.error ??
+                    trans('posts.ai.image_regenerate.errors.unavailable'),
+            );
             unsubscribe();
             return;
         }
@@ -119,7 +132,9 @@ export const useAiMediaRegeneration = (options: UseAiMediaRegenerationOptions) =
         }, REGENERATION_TIMEOUT_MS);
 
         return subscribePrivateChannel(channel, (ch) => {
-            ch.listen('.ai.media.regenerated', (event: RegenerationEvent) => handleRegenerationResult(event));
+            ch.listen('.ai.media.regenerated', (event: RegenerationEvent) =>
+                handleRegenerationResult(event),
+            );
         });
     };
 
@@ -133,7 +148,9 @@ export const useAiMediaRegeneration = (options: UseAiMediaRegenerationOptions) =
 
         if (!instructionValue) {
             errorMessage.value = null;
-            instructionError.value = trans('posts.ai.image_regenerate.errors.required');
+            instructionError.value = trans(
+                'posts.ai.image_regenerate.errors.required',
+            );
             return;
         }
 
@@ -142,7 +159,10 @@ export const useAiMediaRegeneration = (options: UseAiMediaRegenerationOptions) =
         status.value = 'starting';
 
         const regenerationId = crypto.randomUUID();
-        const channel = aiMediaRegenerationChannel(String(page.props.auth.user.id), regenerationId);
+        const channel = aiMediaRegenerationChannel(
+            String(page.props.auth.user.id),
+            regenerationId,
+        );
 
         try {
             const subscribed = await subscribe(channel);
@@ -158,19 +178,29 @@ export const useAiMediaRegeneration = (options: UseAiMediaRegenerationOptions) =
 
             httpRegenerate.instruction = instructionValue;
             httpRegenerate.regeneration_id = regenerationId;
-            await httpRegenerate.post(regeneratePostAiMedia.url({ post: options.postId, mediaId: mediaItem.id }));
+            await httpRegenerate.post(
+                regeneratePostAiMedia.url({
+                    post: options.postId,
+                    mediaId: mediaItem.id,
+                }),
+            );
 
             if (httpRegenerate.hasErrors) {
                 clearRegenerationTimeout();
                 unsubscribe();
                 status.value = 'idle';
-                instructionError.value = httpRegenerate.errors.instruction ?? trans('posts.ai.image_regenerate.errors.start_failed');
+                instructionError.value =
+                    httpRegenerate.errors.instruction ??
+                    trans('posts.ai.image_regenerate.errors.start_failed');
                 return;
             }
         } catch (error: unknown) {
             clearRegenerationTimeout();
             unsubscribe();
-            setIdleWithError(extractErrorMessage(error) ?? trans('posts.ai.image_regenerate.errors.start_failed'));
+            setIdleWithError(
+                extractErrorMessage(error) ??
+                    trans('posts.ai.image_regenerate.errors.start_failed'),
+            );
         }
     };
 

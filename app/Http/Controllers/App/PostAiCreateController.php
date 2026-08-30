@@ -52,6 +52,8 @@ class PostAiCreateController extends Controller
             date: $request->input('date'),
             template: $request->input('template', 'image_card'),
             applyBrandVisuals: $request->boolean('apply_brand_visuals', true),
+            referenceMediaIds: (array) $request->input('reference_media_ids', []),
+            useBrandReferences: $request->boolean('use_brand_references', true),
         );
 
         return response()->json([
@@ -72,6 +74,8 @@ class PostAiCreateController extends Controller
             'date' => $request->query('date') ?: null,
             'template' => (string) $request->query('template', 'image_card'),
             'applyBrandVisuals' => $request->boolean('apply_brand_visuals', true),
+            'referenceMediaIds' => (array) $request->query('reference_media_ids', []),
+            'useBrandReferences' => $request->boolean('use_brand_references', true),
         ]);
     }
 }
