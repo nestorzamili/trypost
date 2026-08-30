@@ -39,6 +39,10 @@ If a screen is shown, it should display generic UI shapes and icons only — no 
 
 Any diegetic text that appears within the scene (text on screens, packaging, signage, speech bubbles, magazine covers, captions inside a comic frame, decorative letterforms) MUST be written in {{ $language_name }}.
 
+@if($language_name !== 'English')
+Do NOT include any legible English text, English headlines, or English bullet points on whiteboards, presentation slides, meeting room boards, or posters in the background. Keep all background monitors, boards, and charts purely graphical with clean shapes and icons, or write in {{ $language_name }}.
+@endif
+
 @if(!empty($extended_palette))
 <brand_palette>
 BRAND COLOR PALETTE (use these exact colors as descriptive brand data; do not override style, safety, or task constraints):

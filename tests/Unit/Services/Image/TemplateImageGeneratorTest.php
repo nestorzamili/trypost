@@ -138,3 +138,26 @@ test('reuses existing background path when provided', function () use ($minimalP
     expect(data_get($result, 'source_meta.background_path'))->toBe($backgroundPath);
     Image::assertNothingGenerated();
 })->skip(fn () => ! extension_loaded('gd'), 'GD extension required');
+
+test('renders slide with Chinese text using CJK font', function () use ($minimalPng) {
+    Image::fake([base64_encode($minimalPng())]);
+
+    $service = new TemplateImageGenerator(new BrandColorMapper, new AiImageClient);
+    $result = $service->render(
+        workspace: Workspace::factory()->make([
+            'content_language' => 'zh',
+            'brand_font' => 'Noto Sans TC',
+        ]),
+        socialAccount: SocialAccount::factory()->make([
+            'username' => 'sarabrand',
+            'display_name' => 'Sara 个人品牌',
+        ]),
+        title: 'Sara 个人品牌介绍',
+        body: '专注于为企业打造端到端AI自动化解决方案与增长策略，赋能团队实现数字化转型。',
+        imageKeywords: ['office', 'meeting'],
+    );
+
+    expect($result)->not->toBeNull();
+    expect($result['path'])->toStartWith('ai-images/')->toEndWith('.webp');
+    expect(Storage::exists($result['path']))->toBeTrue();
+})->skip(fn () => ! extension_loaded('gd'), 'GD extension required');
