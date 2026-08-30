@@ -246,3 +246,18 @@ test('generate returns null instead of throwing when the provider responds with 
 
     expect($client->generate(['x'], ImageStyle::Cinematic))->toBeNull();
 });
+
+test('generate uses high resolution 2K sizes when BytePlus Seedream is configured', function (string $orientation, string $expectedSize) {
+    config()->set('ai.providers.openai.models.image.default', 'seedream-4-5-251128');
+    Image::fake();
+
+    $client = new AiImageClient;
+    $client->generate(['x'], ImageStyle::Cinematic, orientation: $orientation);
+
+    Image::assertGenerated(fn (ImagePrompt $prompt) => $prompt->size === $expectedSize);
+})->with([
+    'square' => ['square', '2048x2048'],
+    'portrait' => ['portrait', '1664x2496'],
+    'landscape' => ['landscape', '2496x1664'],
+]);
+

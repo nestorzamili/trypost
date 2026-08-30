@@ -63,10 +63,13 @@ class AiImageClient
         try {
             $builder = Image::of($prompt)->quality($quality)->timeout($timeout);
 
+            $isSeedream = str_contains((string) config('ai.providers.openai.models.image.default'), 'seedream')
+                || str_contains((string) config('ai.providers.openai.url'), 'byteplus');
+
             $builder = match ($orientation) {
-                'portrait' => $builder->portrait(),
-                'landscape' => $builder->landscape(),
-                default => $builder->square(),
+                'portrait' => $isSeedream ? $builder->size('1664x2496') : $builder->portrait(),
+                'landscape' => $isSeedream ? $builder->size('2496x1664') : $builder->landscape(),
+                default => $isSeedream ? $builder->size('2048x2048') : $builder->square(),
             };
 
             return $this->toResult($builder->generate());
