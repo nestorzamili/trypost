@@ -87,6 +87,11 @@ export interface ContentTypeMediaRule {
     auto_fits_image: boolean;
 }
 
+export interface LegalLinks {
+    terms: string;
+    privacy: string;
+}
+
 export interface SharedData {
     name: string;
     auth: Auth;
@@ -95,6 +100,7 @@ export interface SharedData {
     sidebarOpen: boolean;
     selfHosted: boolean;
     allowMultipleSocialAccounts: boolean;
+    legal: LegalLinks;
     contentTypeMediaRules?: Record<string, ContentTypeMediaRule>;
     [key: string]: unknown;
 }
