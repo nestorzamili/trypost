@@ -1,0 +1,264 @@
+name: TryPost Production Pipeline
+
+on:
+  push:
+    branches:
+      - samunu
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: trypost-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and push image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      compose_artifact: ${{ steps.image.outputs.compose_artifact }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image reference
+        id: image
+        env:
+          REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          set -eu
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "image=$REGISTRY_IMAGE:$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "compose_artifact=trypost-compose-$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Validate public Reverb host
+        env:
+          TRYPOST_PUBLIC_HOST: ${{ vars.TRYPOST_PUBLIC_HOST }}
+        run: |
+          set -eu
+          test -n "$TRYPOST_PUBLIC_HOST" || {
+            echo "Repository variable TRYPOST_PUBLIC_HOST is required" >&2
+            exit 1
+          }
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: production
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.image.outputs.image }}
+          build-args: |
+            VITE_APP_NAME=TryPost
+            VITE_REVERB_APP_KEY=trypost-reverb-key
+            VITE_REVERB_HOST=${{ vars.TRYPOST_PUBLIC_HOST }}
+            VITE_REVERB_PORT=443
+            VITE_REVERB_SCHEME=https
+
+      - name: Upload deployment manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.image.outputs.compose_artifact }}
+          path: compose.prod.yaml
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy to VM
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Download deployment manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.compose_artifact }}
+          path: deployment
+
+      - name: Parse SSH configuration
+        id: ssh-config
+        env:
+          SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
+        run: |
+          set -eu
+
+          user="${SSH_CONFIG%@*}"
+          endpoint="${SSH_CONFIG#*@}"
+
+          if [ "$user" = "$SSH_CONFIG" ] || [ -z "$user" ]; then
+            echo "SSH_CONFIG must use the format user@host:port" >&2
+            exit 1
+          fi
+
+          case "$endpoint" in
+            \[*\]:*)
+              host="${endpoint%%]*}"
+              host="${host#\[}"
+              port="${endpoint##*]:}"
+              ;;
+            *:*)
+              host="${endpoint%:*}"
+              port="${endpoint##*:}"
+              ;;
+            *)
+              echo "SSH_CONFIG must include a port" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$port" in
+            ''|*[!0-9]*)
+              echo "SSH_CONFIG port must be numeric" >&2
+              exit 1
+              ;;
+          esac
+
+          [ -n "$host" ] || {
+            echo "SSH_CONFIG host is required" >&2
+            exit 1
+          }
+
+          {
+            echo "user=$user"
+            echo "host=$host"
+            echo "port=$port"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Copy deployment manifest to VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ steps.ssh-config.outputs.host }}
+          username: ${{ steps.ssh-config.outputs.user }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ steps.ssh-config.outputs.port }}
+          source: deployment/compose.prod.yaml
+          target: /opt/trypost
+          overwrite: true
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          TRYPOST_IMAGE: ${{ needs.build.outputs.image }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ steps.ssh-config.outputs.host }}
+          username: ${{ steps.ssh-config.outputs.user }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ steps.ssh-config.outputs.port }}
+          envs: TRYPOST_IMAGE,GHCR_USERNAME,GHCR_TOKEN
+          script_stop: true
+          script: |
+            set -eu
+
+            cd /opt/trypost
+
+            test -f compose.prod.yaml || {
+              echo "compose.prod.yaml is required at /opt/trypost/compose.prod.yaml" >&2
+              exit 1
+            }
+
+            test -f .env || {
+              echo ".env is required at /opt/trypost/.env" >&2
+              exit 1
+            }
+
+            require_env() {
+              key="$1"
+              if ! grep -Eq "^${key}=.+" .env; then
+                echo "$key must be set in .env" >&2
+                exit 1
+              fi
+            }
+
+            require_env APP_NAME
+            require_env APP_ENV
+            require_env APP_KEY
+            require_env APP_URL
+            require_env DB_CONNECTION
+            require_env DB_HOST
+            require_env DB_PORT
+            require_env DB_DATABASE
+            require_env DB_USERNAME
+            require_env DB_PASSWORD
+            require_env REDIS_HOST
+            require_env REDIS_PORT
+            require_env QUEUE_CONNECTION
+            require_env CACHE_STORE
+            require_env SESSION_DRIVER
+            require_env BROADCAST_CONNECTION
+            require_env REVERB_APP_ID
+            require_env REVERB_APP_KEY
+            require_env REVERB_APP_SECRET
+            require_env REVERB_HOST
+            require_env REVERB_PORT
+            require_env REVERB_SCHEME
+            require_env PASSPORT_PRIVATE_KEY
+            require_env PASSPORT_PUBLIC_KEY
+
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
+              --username "$GHCR_USERNAME" \
+              --password-stdin
+
+            compose() {
+              TRYPOST_IMAGE="$TRYPOST_IMAGE" docker compose \
+                --env-file .env \
+                -p trypost \
+                -f compose.prod.yaml \
+                "$@"
+            }
+
+            compose config --quiet
+            compose pull app
+            compose up -d --wait --remove-orphans pgsql redis
+            compose exec -T app php artisan horizon:terminate || true
+            compose up -d --wait --no-deps --remove-orphans app
+
+            ATTEMPT=0
+            until curl --fail --silent --show-error \
+              http://127.0.0.1:8000/up; do
+              ATTEMPT=$((ATTEMPT + 1))
+
+              if [ "$ATTEMPT" -ge 30 ]; then
+                echo "TryPost health check failed after 60 seconds" >&2
+                compose ps
+                exit 1
+              fi
+
+              sleep 2
+            done
+
+            compose exec -T app php artisan horizon:status
+
+            # Keep only the active TryPost image. Images from other repositories
+            # and all PostgreSQL/Redis volumes are left untouched.
+            IMAGE_REPOSITORY="${TRYPOST_IMAGE%:*}"
+            CURRENT_IMAGE_ID="$(docker image inspect "$TRYPOST_IMAGE" --format '{{.Id}}')"
+            docker image ls "$IMAGE_REPOSITORY" --format '{{.ID}}' | sort -u | while read -r IMAGE_ID; do
+              if [ -n "$IMAGE_ID" ] && [ "$IMAGE_ID" != "$CURRENT_IMAGE_ID" ]; then
+                docker image rm "$IMAGE_ID" || true
+              fi
+            done
