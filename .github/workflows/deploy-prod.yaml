@@ -160,6 +160,7 @@ jobs:
           source: deployment/compose.prod.yaml
           target: /opt/trypost
           overwrite: true
+          strip_components: 1
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.2
@@ -173,11 +174,13 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ steps.ssh-config.outputs.port }}
           envs: TRYPOST_IMAGE,GHCR_USERNAME,GHCR_TOKEN
-          script_stop: true
           script: |
             set -eu
 
             cd /opt/trypost
+
+            # Remove the staging directory used by the failed pre-artifact deploy.
+            rm -rf deployment
 
             test -f compose.prod.yaml || {
               echo "compose.prod.yaml is required at /opt/trypost/compose.prod.yaml" >&2
