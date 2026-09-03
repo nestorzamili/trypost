@@ -6,7 +6,8 @@ SHA, pushes it to GHCR, and deploys that image to the VM through SSH.
 
 TryPost uses its own PostgreSQL and Redis containers. Existing containers such
 as `scsme-db`, `scsme-redis`, and `redis-shared` are not used or modified.
-The existing host Nginx proxies traffic to TryPost on `127.0.0.1:8000`.
+The existing host Nginx proxies application traffic to `127.0.0.1:8000` and
+Reverb traffic to `127.0.0.1:8080`.
 
 ## GitHub Actions configuration
 
@@ -92,14 +93,25 @@ server {
     server_name ${PUBLIC_HOST};
 
     location /app/ {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+
+    location /apps/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 
     location / {
@@ -117,8 +129,8 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-Make sure DNS already points `${PUBLIC_HOST}` to the VM, then let Certbot
-obtain and configure the HTTPS certificate:
+Make sure DNS already points `${PUBLIC_HOST}` to the VM. Use the existing
+Certbot installation to obtain and configure the HTTPS certificate:
 
 ```bash
 sudo certbot --nginx --redirect -d post.example.com
@@ -145,7 +157,13 @@ Do not enable the Caddy profile because host Nginx already owns ports 80 and
 
 `compose.prod.yaml` is self-contained. It binds the application and Reverb
 ports to localhost and keeps PostgreSQL and Redis in the `trypost` Compose
-project.
+project. The production image runs Horizon, Reverb, and the scheduler through
+Supervisor; do not add bare-metal Supervisor or cron entries for this stack.
+
+The official guide also lists `UserSeeder` for the initial admin account. The
+current container entrypoint does not run it; create the first account through
+the intended application setup and never use the seeder's default credentials
+in production.
 
 The deployed image uses a seven-character commit SHA, for example:
 

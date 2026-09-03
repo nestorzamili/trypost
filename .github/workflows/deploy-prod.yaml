@@ -35,6 +35,7 @@ jobs:
         run: |
           set -eu
           SHORT_SHA="${GITHUB_SHA::7}"
+          REGISTRY_IMAGE="${REGISTRY_IMAGE,,}"
           echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "image=$REGISTRY_IMAGE:$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "compose_artifact=trypost-compose-$SHORT_SHA" >> "$GITHUB_OUTPUT"
