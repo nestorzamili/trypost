@@ -19,6 +19,7 @@ return [
         'content' => 'المحتوى',
         'platforms' => 'المنصات',
         'labels' => 'التسميات',
+        'created_at' => 'تاريخ الإنشاء',
         'scheduled_at' => 'التاريخ',
         'actions' => '',
     ],
@@ -621,9 +622,9 @@ return [
             'media_count_label' => 'عدد الصور',
             'brand_colors_label' => 'ألوان العلامة التجارية',
             'brand_colors_description' => 'طبّق لوحة ألوان علامتك التجارية على الصور المُنشأة. عطّله لترك الذكاء الاصطناعي يختار الألوان التي تناسب المحتوى.',
-            
-            "brand_references_label" => "Use Brand Reference Photos",
-            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
+
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => 'صِف منشورك',
             'prompt_label' => 'ما موضوع هذا المنشور؟',
             'prompt_placeholder' => 'مثال: الإعلان عن ميزة العرض الدائري الجديدة لدينا على Instagram',

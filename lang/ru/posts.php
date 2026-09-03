@@ -19,6 +19,7 @@ return [
         'content' => 'Содержимое',
         'platforms' => 'Платформы',
         'labels' => 'Метки',
+        'created_at' => 'Создано',
         'scheduled_at' => 'Дата',
         'actions' => '',
     ],
@@ -621,9 +622,9 @@ return [
             'media_count_label' => 'Количество изображений',
             'brand_colors_label' => 'Цвета бренда',
             'brand_colors_description' => 'Применяйте фирменную палитру вашего рабочего пространства к создаваемым изображениям. Отключите, чтобы ИИ подобрал цвета под содержание.',
-            
-            "brand_references_label" => "Use Brand Reference Photos",
-            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
+
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => 'Опишите свой пост',
             'prompt_label' => 'О чём этот пост?',
             'prompt_placeholder' => 'например, Анонсировать нашу новую функцию карусели для Instagram',

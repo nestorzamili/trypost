@@ -72,9 +72,11 @@ class PostController extends Controller
             fn ($q) => $q->whereIn('workspace_labels.id', $labelIds),
         ));
 
+        $orderColumn = $status === PostStatus::Draft->value ? 'created_at' : 'scheduled_at';
+
         return Inertia::render('posts/Index', [
             'workspace' => $workspace,
-            'posts' => Inertia::scroll(fn () => $query->latest('scheduled_at')->paginate(config('app.pagination.default'))),
+            'posts' => Inertia::scroll(fn () => $query->latest($orderColumn)->paginate(config('app.pagination.default'))),
             'currentStatus' => $status,
             'labels' => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
             'filters' => [

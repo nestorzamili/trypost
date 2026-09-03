@@ -19,6 +19,7 @@ return [
         'content' => 'Вміст',
         'platforms' => 'Платформи',
         'labels' => 'Мітки',
+        'created_at' => 'Створено',
         'scheduled_at' => 'Дата',
         'actions' => '',
     ],
@@ -621,9 +622,9 @@ return [
             'media_count_label' => 'Кількість зображень',
             'brand_colors_label' => 'Кольори бренду',
             'brand_colors_description' => 'Застосовуйте фірмову палітру вашого workspace до згенерованих зображень. Вимкніть, щоб AI підібрав кольори під вміст.',
-            
-            "brand_references_label" => "Use Brand Reference Photos",
-            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
+
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => 'Опишіть свій пост',
             'prompt_label' => 'Про що цей пост?',
             'prompt_placeholder' => 'наприклад, Оголосити нашу нову функцію каруселі для Instagram',

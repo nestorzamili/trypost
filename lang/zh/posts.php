@@ -19,6 +19,7 @@ return [
         'content' => '内容',
         'platforms' => '平台',
         'labels' => '标签',
+        'created_at' => '创建时间',
         'scheduled_at' => '日期',
         'actions' => '',
     ],

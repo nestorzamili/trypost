@@ -21,6 +21,7 @@ return [
         'content' => 'Inhalt',
         'platforms' => 'Plattformen',
         'labels' => 'Labels',
+        'created_at' => 'Erstellt am',
         'scheduled_at' => 'Datum',
         'actions' => '',
     ],
@@ -623,9 +624,9 @@ return [
             'media_count_label' => 'Anzahl der Bilder',
             'brand_colors_label' => 'Markenfarben',
             'brand_colors_description' => 'Wende die Markenpalette deines Workspace auf die generierten Bilder an. Deaktiviere die Option, damit die KI passende Farben zum Inhalt wählt.',
-            
-            "brand_references_label" => "Use Brand Reference Photos",
-            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
+
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => 'Beschreibe deinen Beitrag',
             'prompt_label' => 'Worum geht es in diesem Beitrag?',
             'prompt_placeholder' => 'z. B. Unser neues Karussell-Feature für Instagram ankündigen',

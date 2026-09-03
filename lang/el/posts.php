@@ -19,6 +19,7 @@ return [
         'content' => 'Περιεχόμενο',
         'platforms' => 'Πλατφόρμες',
         'labels' => 'Ετικέτες',
+        'created_at' => 'Δημιουργήθηκε στις',
         'scheduled_at' => 'Ημερομηνία',
         'actions' => '',
     ],
@@ -621,9 +622,9 @@ return [
             'media_count_label' => 'Αριθμός εικόνων',
             'brand_colors_label' => 'Χρώματα επωνυμίας',
             'brand_colors_description' => 'Εφάρμοσε την παλέτα της επωνυμίας σου στις εικόνες που δημιουργούνται. Απενεργοποίησέ το για να επιλέξει το AI χρώματα που ταιριάζουν στο περιεχόμενο.',
-            
-            "brand_references_label" => "Use Brand Reference Photos",
-            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
+
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => 'Περιγράψτε τη δημοσίευσή σας',
             'prompt_label' => 'Ποιο είναι το θέμα αυτής της δημοσίευσης;',
             'prompt_placeholder' => 'π.χ. Ανακοινώστε τη νέα μας λειτουργία carousel για το Instagram',

@@ -19,6 +19,7 @@ return [
         'content' => 'Contenuto',
         'platforms' => 'Piattaforme',
         'labels' => 'Etichette',
+        'created_at' => 'Creato il',
         'scheduled_at' => 'Data',
         'actions' => '',
     ],
@@ -621,9 +622,9 @@ return [
             'media_count_label' => 'Numero di immagini',
             'brand_colors_label' => 'Colori del brand',
             'brand_colors_description' => 'Applica la palette del tuo brand alle immagini generate. Disattivalo per lasciare che l’IA scelga i colori più adatti al contenuto.',
-            
-            "brand_references_label" => "Use Brand Reference Photos",
-            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
+
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => 'Descrivi il tuo post',
             'prompt_label' => 'Di cosa parla questo post?',
             'prompt_placeholder' => 'es. Annuncia la nostra nuova funzione carosello per Instagram',

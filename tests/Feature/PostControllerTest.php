@@ -55,6 +55,33 @@ test('posts index shows posts for current workspace', function () {
     );
 });
 
+test('draft posts expose their creation date and are ordered by it', function () {
+    $olderDraft = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::Draft,
+        'created_at' => now()->subDay(),
+    ]);
+    $newerDraft = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::Draft,
+        'created_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->user)->get(route('app.posts.index', [
+        'status' => PostStatus::Draft->value,
+    ]));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('posts.data', 2)
+        ->where('posts.data.0.id', $newerDraft->id)
+        ->has('posts.data.0.created_at')
+        ->where('posts.data.1.id', $olderDraft->id)
+    );
+});
+
 test('posts index exposes workspace labels for filter dropdown', function () {
     WorkspaceLabel::factory()->count(3)->create(['workspace_id' => $this->workspace->id]);
     WorkspaceLabel::factory()->create(); // belongs to a different workspace; must not leak.

@@ -19,6 +19,7 @@ return [
         'content' => 'Conteúdo',
         'platforms' => 'Plataformas',
         'labels' => 'Etiquetas',
+        'created_at' => 'Criado em',
         'scheduled_at' => 'Data',
         'actions' => '',
     ],
@@ -621,9 +622,9 @@ return [
             'media_count_label' => 'Número de imagens',
             'brand_colors_label' => 'Cores da marca',
             'brand_colors_description' => 'Aplica a paleta da sua marca nas imagens geradas. Desative para deixar a IA escolher as cores que combinam com o conteúdo.',
-            
-            "brand_references_label" => "Use Brand Reference Photos",
-            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
+
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => 'Descreva seu post',
             'prompt_label' => 'Sobre o que é este post?',
             'prompt_placeholder' => 'Ex. Anunciar nossa nova função de carrossel para o Instagram',

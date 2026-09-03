@@ -19,6 +19,7 @@ return [
         'content' => '内容',
         'platforms' => 'プラットフォーム',
         'labels' => 'ラベル',
+        'created_at' => '作成日時',
         'scheduled_at' => '日付',
         'actions' => '',
     ],
@@ -621,9 +622,9 @@ return [
             'media_count_label' => '画像の枚数',
             'brand_colors_label' => 'ブランドカラー',
             'brand_colors_description' => '生成される画像にワークスペースのブランドカラーを適用します。オフにすると、AI がコンテンツに合った色を選びます。',
-            
-            "brand_references_label" => "Use Brand Reference Photos",
-            "brand_references_description" => "Maintain character likeness and visual consistency with uploaded brand persona/activity photos.",
+
+            'brand_references_label' => 'Use Brand Reference Photos',
+            'brand_references_description' => 'Maintain character likeness and visual consistency with uploaded brand persona/activity photos.',
             'prompt_title' => '投稿を説明',
             'prompt_label' => 'この投稿は何についてですか？',
             'prompt_placeholder' => '例: Instagram 向けの新しいカルーセル機能を発表',

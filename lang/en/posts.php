@@ -19,6 +19,7 @@ return [
         'content' => 'Content',
         'platforms' => 'Platforms',
         'labels' => 'Labels',
+        'created_at' => 'Created at',
         'scheduled_at' => 'Date',
         'actions' => '',
     ],

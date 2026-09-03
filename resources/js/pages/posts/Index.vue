@@ -91,6 +91,7 @@ interface Post {
     status: string;
     scheduled_at: string | null;
     published_at: string | null;
+    created_at: string;
     post_platforms: PostPlatform[];
     labels: Label[];
 }
@@ -159,6 +160,17 @@ const formatDateTime = (value: string | null): string => {
     if (!value) return '—';
     return date.formatDateTime(value);
 };
+
+const dateColumnLabel = computed(() =>
+    props.currentStatus === PostStatus.Draft
+        ? trans('posts.table.created_at')
+        : trans('posts.table.scheduled_at'),
+);
+
+const getPostDate = (post: Post): string | null =>
+    post.status === PostStatus.Draft
+        ? post.created_at
+        : (post.scheduled_at ?? post.published_at);
 
 const getEnabledPlatforms = (post: Post) =>
     post.post_platforms.filter((pp) => pp.enabled);
@@ -286,9 +298,7 @@ useWorkspaceEcho(
                                 <TableHead>{{
                                     $t('posts.table.status')
                                 }}</TableHead>
-                                <TableHead>{{
-                                    $t('posts.table.scheduled_at')
-                                }}</TableHead>
+                                <TableHead>{{ dateColumnLabel }}</TableHead>
                                 <TableHead class="text-right">{{
                                     $t('posts.table.actions')
                                 }}</TableHead>
@@ -439,12 +449,7 @@ useWorkspaceEcho(
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    {{
-                                        formatDateTime(
-                                            post.scheduled_at ??
-                                                post.published_at,
-                                        )
-                                    }}
+                                    {{ formatDateTime(getPostDate(post)) }}
                                 </TableCell>
                                 <TableCell class="text-right" @click.stop>
                                     <DropdownMenu>
