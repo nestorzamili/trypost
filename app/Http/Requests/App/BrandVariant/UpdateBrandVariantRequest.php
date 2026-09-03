@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\App\BrandVariant;
 
 use App\Enums\Workspace\BrandFont;
+use App\Enums\Workspace\ContentLanguage;
 use App\Models\BrandVariant;
 use App\Models\Workspace;
 use Illuminate\Foundation\Http\FormRequest;
@@ -25,7 +26,7 @@ class UpdateBrandVariantRequest extends FormRequest
         $workspaceId = $this->user()?->currentWorkspace?->id;
         $brandVariant = $this->route('brandVariant');
         $hex = ['nullable', 'string', 'regex:/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/'];
-        $language = ['required', 'string', Rule::in(['en', 'zh'])];
+        $language = ['required', 'string', Rule::in(ContentLanguage::values())];
 
         if ($workspaceId !== null) {
             $language[] = Rule::unique('brand_variants', 'language_code')

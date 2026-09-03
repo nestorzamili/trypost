@@ -42,7 +42,7 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false });
 
 const form = useForm({
-    language_code: 'en' as 'en' | 'zh',
+    language_code: 'en' as string,
     label: '',
     colors: {} as Record<string, string>,
     brand_color: null as string | null,
@@ -81,7 +81,7 @@ const resetForm = () => {
     form.reset();
     form.language_code =
         variant?.language_code ??
-        (defaults.language_code as 'en' | 'zh' | undefined) ??
+        (defaults.language_code as string | undefined) ??
         'en';
     form.label = variant?.label ?? (defaults.label as string | undefined) ?? '';
     form.colors =

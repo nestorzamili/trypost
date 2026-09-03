@@ -1,6 +1,6 @@
 export interface BrandVariant {
     id: string;
-    language_code: 'en' | 'zh';
+    language_code: string;
     label: string;
     colors: Record<string, string> | null;
     brand_color: string | null;
@@ -15,7 +15,7 @@ export interface BrandVariant {
 }
 
 export interface BrandVariantLanguage {
-    code: 'en' | 'zh';
+    code: string;
     label: string;
     available: boolean;
 }

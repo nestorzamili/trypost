@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\UserWorkspace\Role;
+use App\Enums\Workspace\ContentLanguage;
 use App\Models\BrandVariant;
 use App\Models\User;
 use App\Models\Workspace;
@@ -120,7 +121,20 @@ test('variant language update cannot collide with another variant', function () 
         ->assertSessionHasErrors('language_code');
 });
 
-test('variant validation accepts Sara palettes and rejects invalid input', function () {
+test('variants accept every supported content language', function () {
+    foreach (ContentLanguage::cases() as $language) {
+        $this->actingAs($this->user)
+            ->post(route('app.workspace.brand-variants.store'), variantPayload([
+                'language_code' => $language->value,
+                'label' => $language->label(),
+            ]))
+            ->assertRedirect();
+    }
+
+    expect($this->workspace->brandVariants()->count())->toBe(count(ContentLanguage::cases()));
+});
+
+test('variant validation rejects invalid palettes and unsupported languages', function () {
     $this->actingAs($this->user)
         ->post(route('app.workspace.brand-variants.store'), variantPayload([
             'colors' => ['Bad Color' => 'not-a-hex'],
@@ -129,7 +143,7 @@ test('variant validation accepts Sara palettes and rejects invalid input', funct
 
     $this->actingAs($this->user)
         ->post(route('app.workspace.brand-variants.store'), variantPayload([
-            'language_code' => 'fr',
+            'language_code' => 'invalid',
         ]))
         ->assertSessionHasErrors('language_code');
 });
@@ -156,7 +170,10 @@ test('brand settings includes variants and available languages', function () {
         ->assertInertia(fn ($page) => $page
             ->component('settings/workspace/Brand', false)
             ->has('workspace.brand_variants', 1)
+            ->has('variantLanguages', count(ContentLanguage::cases()))
+            ->where('variantLanguages.0.code', ContentLanguage::English->value)
             ->where('variantLanguages.0.available', false)
+            ->where('variantLanguages.1.code', ContentLanguage::Ukrainian->value)
             ->where('variantLanguages.1.available', true)
         );
 });
