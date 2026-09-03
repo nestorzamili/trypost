@@ -18,6 +18,7 @@ jobs:
   build:
     name: Build and push image
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 20
     outputs:
       image: ${{ steps.image.outputs.image }}
@@ -86,6 +87,7 @@ jobs:
     name: Deploy to VM
     needs: build
     runs-on: ubuntu-latest
+    environment: production
     timeout-minutes: 15
     permissions:
       contents: read

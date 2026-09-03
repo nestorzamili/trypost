@@ -10,13 +10,16 @@ The existing host Nginx proxies traffic to TryPost on `127.0.0.1:8000`.
 
 ## GitHub Actions configuration
 
+Create the following secrets and variable under the GitHub Environment named
+`production`. Both workflow jobs use this environment.
+
 ### Secrets
 
 | Name | Required | Description |
 |---|---:|---|
 | `SSH_CONFIG` | Yes | SSH endpoint in the format `user@host:port`, for example `dck@srv1900584:22` |
 | `SSH_PRIVATE_KEY` | Yes | Private key for the VM SSH user |
-| `GITHUB_TOKEN` | Automatic | GitHub-provided token used to push and pull the GHCR image |
+| `GITHUB_TOKEN` | Automatic | GitHub-provided token used to push and pull the GHCR image; no manual setup required |
 
 `SSH_CONFIG` contains only the endpoint. Keep the private key in
 `SSH_PRIVATE_KEY`; do not combine them.
@@ -25,7 +28,7 @@ The existing host Nginx proxies traffic to TryPost on `127.0.0.1:8000`.
 
 | Name | Required | Description |
 |---|---:|---|
-| `TRYPOST_PUBLIC_HOST` | Yes | Public hostname without protocol or path, for example `post.example.com` |
+| `TRYPOST_PUBLIC_HOST` | Yes | Environment variable containing the public hostname without protocol or path, for example `post.example.com` |
 | Other variables | No | No optional GitHub variables are currently used |
 
 ### Build arguments
