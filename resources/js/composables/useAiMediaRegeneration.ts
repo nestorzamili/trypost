@@ -14,6 +14,8 @@ export interface RegenerationPayload {
     targetMediaId: string;
 }
 
+export type RegenerationMode = 'text_only' | 'image_only' | 'both';
+
 type RegenerationStatus = 'idle' | 'starting' | 'processing';
 
 interface RegenerationEvent {
@@ -40,15 +42,20 @@ export const useAiMediaRegeneration = (
 ) => {
     const page = usePage();
     const instruction = ref('');
+    const mode = ref<RegenerationMode>('both');
     const errorMessage = ref<string | null>(null);
     const instructionError = ref<string | undefined>(undefined);
+    const modeError = ref<string | undefined>(undefined);
+    const canContinueInBackground = ref(false);
     const status = ref<RegenerationStatus>('idle');
 
     const httpRegenerate = useHttp<{
         instruction: string;
+        mode: RegenerationMode;
         regeneration_id: string;
     }>({
         instruction: '',
+        mode: 'both',
         regeneration_id: '',
     });
 
@@ -79,20 +86,25 @@ export const useAiMediaRegeneration = (
 
     const setIdleWithError = (message: string) => {
         errorMessage.value = message;
+        toast.error(message);
         status.value = 'idle';
+        canContinueInBackground.value = false;
     };
 
     const resetState = () => {
         instruction.value = '';
+        mode.value = 'both';
         errorMessage.value = null;
         instructionError.value = undefined;
+        modeError.value = undefined;
+        canContinueInBackground.value = false;
         status.value = 'idle';
         clearRegenerationTimeout();
         unsubscribe();
     };
 
     const blockDismissWhileBusy = (event: Event) => {
-        if (isBusy.value) {
+        if (isBusy.value && !canContinueInBackground.value) {
             event.preventDefault();
         }
     };
@@ -110,7 +122,7 @@ export const useAiMediaRegeneration = (
             return;
         }
 
-        toast.success(trans('posts.ai.image_regenerate.success'));
+        toast.success(trans(`posts.ai.image_regenerate.success.${mode.value}`));
 
         options.onRegenerated({
             media: event.media,
@@ -156,6 +168,8 @@ export const useAiMediaRegeneration = (
 
         errorMessage.value = null;
         instructionError.value = undefined;
+        modeError.value = undefined;
+        canContinueInBackground.value = false;
         status.value = 'starting';
 
         const regenerationId = crypto.randomUUID();
@@ -177,6 +191,7 @@ export const useAiMediaRegeneration = (
             }
 
             httpRegenerate.instruction = instructionValue;
+            httpRegenerate.mode = mode.value;
             httpRegenerate.regeneration_id = regenerationId;
             await httpRegenerate.post(
                 regeneratePostAiMedia.url({
@@ -189,11 +204,19 @@ export const useAiMediaRegeneration = (
                 clearRegenerationTimeout();
                 unsubscribe();
                 status.value = 'idle';
-                instructionError.value =
-                    httpRegenerate.errors.instruction ??
-                    trans('posts.ai.image_regenerate.errors.start_failed');
+                instructionError.value = httpRegenerate.errors.instruction;
+                modeError.value = httpRegenerate.errors.mode;
+                errorMessage.value =
+                    httpRegenerate.errors.instruction ||
+                    httpRegenerate.errors.mode
+                        ? null
+                        : trans(
+                              'posts.ai.image_regenerate.errors.start_failed',
+                          );
                 return;
             }
+
+            canContinueInBackground.value = true;
         } catch (error: unknown) {
             clearRegenerationTimeout();
             unsubscribe();
@@ -212,8 +235,11 @@ export const useAiMediaRegeneration = (
 
     return {
         instruction,
+        mode,
         errorMessage,
         instructionError,
+        modeError,
+        canContinueInBackground,
         status,
         isBusy,
         isProcessing,

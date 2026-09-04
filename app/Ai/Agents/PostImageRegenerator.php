@@ -41,10 +41,6 @@ class PostImageRegenerator implements Agent, HasStructuredOutput
                 ->items($schema->string())
                 ->description('3-10 short keywords for image generation context.')
                 ->required(),
-            'change_mode' => $schema->string()
-                ->enum(['image_only', 'text_only', 'both'])
-                ->description('Set to image_only (change visual only), text_only (change text only), or both (change visual and text).')
-                ->required(),
         ];
     }
 }

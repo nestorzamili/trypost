@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\App\Ai;
 
+use App\Enums\Ai\MediaRegenerationMode;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class RegeneratePostMediaImageRequest extends FormRequest
 {
@@ -20,6 +22,7 @@ class RegeneratePostMediaImageRequest extends FormRequest
     {
         return [
             'instruction' => ['required', 'string', 'max:1000'],
+            'mode' => ['required', 'string', Rule::enum(MediaRegenerationMode::class)],
             'regeneration_id' => ['required', 'string', 'uuid'],
         ];
     }

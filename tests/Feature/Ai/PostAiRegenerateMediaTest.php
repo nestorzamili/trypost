@@ -69,6 +69,7 @@ test('regenerate media dispatches async job using the client-supplied regenerati
             'mediaId' => 'media-ai-1',
         ]), [
             'instruction' => 'Replace ECP with ICP and keep the same visual style.',
+            'mode' => 'both',
             'regeneration_id' => $regenerationId,
         ])
         ->assertStatus(Response::HTTP_ACCEPTED);
@@ -81,6 +82,7 @@ test('regenerate media dispatches async job using the client-supplied regenerati
             && $job->postId === $this->post->id
             && $job->mediaId === 'media-ai-1'
             && $job->instruction === 'Replace ECP with ICP and keep the same visual style.'
+            && $job->mode->value === 'both'
             && $job->regenerationId === $regenerationId;
     });
 });
@@ -94,6 +96,7 @@ test('regenerate media requires a valid regeneration_id', function (mixed $regen
             'mediaId' => 'media-ai-1',
         ]), [
             'instruction' => 'Fix typo',
+            'mode' => 'both',
             'regeneration_id' => $regenerationId,
         ])
         ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
@@ -125,6 +128,7 @@ test('regenerate media rejects non ai media items', function () {
             'mediaId' => 'media-static-1',
         ]), [
             'instruction' => 'Change the title text',
+            'mode' => 'text_only',
             'regeneration_id' => Str::uuid()->toString(),
         ])
         ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
@@ -132,6 +136,27 @@ test('regenerate media rejects non ai media items', function () {
 
     Bus::assertNotDispatched(RegeneratePostMediaImage::class);
 });
+
+test('regenerate media requires a valid mode', function (mixed $mode) {
+    Bus::fake();
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.regenerate-media', [
+            'post' => $this->post->id,
+            'mediaId' => 'media-ai-1',
+        ]), [
+            'instruction' => 'Generate a new office visual.',
+            'mode' => $mode,
+            'regeneration_id' => Str::uuid()->toString(),
+        ])
+        ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
+        ->assertJsonValidationErrors(['mode']);
+
+    Bus::assertNotDispatched(RegeneratePostMediaImage::class);
+})->with([
+    'missing' => [null],
+    'invalid' => ['copy_only'],
+]);
 
 test('regenerate media returns not found when media id is missing from post', function () {
     Bus::fake();
@@ -142,6 +167,7 @@ test('regenerate media returns not found when media id is missing from post', fu
             'mediaId' => 'missing-media-id',
         ]), [
             'instruction' => 'Fix typo',
+            'mode' => 'text_only',
             'regeneration_id' => Str::uuid()->toString(),
         ])
         ->assertStatus(Response::HTTP_NOT_FOUND);
@@ -160,6 +186,7 @@ test('regenerate media rejects finalized posts', function () {
             'mediaId' => 'media-ai-1',
         ]), [
             'instruction' => 'Fix typo',
+            'mode' => 'text_only',
             'regeneration_id' => Str::uuid()->toString(),
         ])
         ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
@@ -177,6 +204,7 @@ test('regenerate media validates instruction is required', function () {
             'mediaId' => 'media-ai-1',
         ]), [
             'instruction' => '   ',
+            'mode' => 'text_only',
             'regeneration_id' => Str::uuid()->toString(),
         ])
         ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -212,6 +240,7 @@ test('regenerate media denies access when post is from another workspace', funct
             'mediaId' => 'other-ai-media',
         ]), [
             'instruction' => 'Fix typo',
+            'mode' => 'text_only',
             'regeneration_id' => Str::uuid()->toString(),
         ])
         ->assertNotFound();

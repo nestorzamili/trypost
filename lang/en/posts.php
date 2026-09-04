@@ -257,13 +257,50 @@ return [
         'image_regenerate' => [
             'button' => 'Adjust',
             'title' => 'Adjust AI image',
-            'description' => 'Describe the correction. The new image replaces the current one and keeps its position in the carousel.',
+            'descriptions' => [
+                'text_only' => 'Describe the text correction. The current visual and carousel position will stay the same.',
+                'image_only' => 'Describe the new visual. It will replace the current visual and keep its position in the carousel.',
+                'both' => 'Describe the text and visual changes. The updated image will keep its position in the carousel.',
+            ],
+            'mode_label' => 'What should change?',
+            'modes' => [
+                'text_only' => [
+                    'label' => 'Text only',
+                    'description' => 'Keep the current visual and update the text on the image.',
+                ],
+                'image_only' => [
+                    'label' => 'New visual',
+                    'description' => 'Generate a new background while keeping the image text unchanged.',
+                ],
+                'both' => [
+                    'label' => 'Text and visual',
+                    'description' => 'Generate a new background and update the image text.',
+                ],
+            ],
             'instruction_label' => 'Instruction',
-            'instruction_placeholder' => 'e.g. Fix the typo in the headline and make the background lighter.',
-            'processing' => 'Regenerating image... this can take a few seconds.',
-            'submit' => 'Regenerate image',
+            'instruction_placeholders' => [
+                'text_only' => 'e.g. Change “ECP” to “ICP” in the headline.',
+                'image_only' => 'e.g. Replace the background with a sunrise forest.',
+                'both' => 'e.g. Update the headline and use a brighter office background.',
+            ],
+            'processing' => [
+                'text_only' => 'Updating image text… this can take a few seconds.',
+                'image_only' => 'Generating a new visual… this can take a few seconds.',
+                'both' => 'Updating image text and visual… this can take a few seconds.',
+            ],
+            'submit' => [
+                'text_only' => 'Update text',
+                'image_only' => 'Generate new visual',
+                'both' => 'Update text and visual',
+            ],
+            'continue_in_background' => 'Continue in background',
+            'background_notice' => 'Regeneration will continue in the background.',
             'cancel' => 'Cancel',
-            'success' => 'Image updated. The new version replaced the previous one in your post.',
+            'success' => [
+                'text_only' => 'Image text updated.',
+                'image_only' => 'New visual applied.',
+                'both' => 'Image text and visual updated.',
+            ],
             'fallback_title' => 'Improve this image copy',
             'errors' => [
                 'required' => 'Instruction is required.',

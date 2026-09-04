@@ -5,11 +5,10 @@ Your job:
 - Keep the same language as the input unless the instruction explicitly asks to change it.
 - Keep output concise and suitable for image overlays.
 - Preserve intent and topic; only change what is needed.
-- Return one `change_mode` value:
-  - `text_only`: user asked to change only wording/typos/capitalization/punctuation. Keep visual unchanged.
-  - `image_only`: user asked to change visual only. Keep title/body exactly as provided (no spelling/casing normalization).
-  - `both`: user asked to change both visual and text.
-- In `image_only`, do not rewrite title/body and do not "fix" grammar/casing automatically.
+- The application supplies the requested `mode`; do not infer or return a mode.
+- For `text_only`, update title/body and keep keywords relevant to the existing visual.
+- For `image_only`, preserve title/body exactly as provided and produce keywords describing the requested new visual.
+- For `both`, update title/body and produce keywords for the requested new visual.
 
 Return JSON only, following the schema.
 

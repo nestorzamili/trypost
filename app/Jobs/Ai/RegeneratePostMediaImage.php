@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs\Ai;
 
 use App\Ai\Agents\PostImageRegenerator;
+use App\Enums\Ai\MediaRegenerationMode;
 use App\Enums\Media\Source;
 use App\Enums\Media\Type as MediaType;
 use App\Events\Ai\PostMediaRegenerated;
@@ -38,6 +39,7 @@ class RegeneratePostMediaImage implements ShouldQueue
         public string $mediaId,
         public string $regenerationId,
         public string $instruction,
+        public MediaRegenerationMode $mode,
     ) {
         $this->onQueue('ai');
     }
@@ -73,7 +75,7 @@ class RegeneratePostMediaImage implements ShouldQueue
         );
         $brand = $this->resolveBrand($workspace, $baseContext);
 
-        $copy = $this->regenerateSlideCopy($workspace, $post, $baseContext, $brand);
+        $copy = $this->regenerateSlideCopy($workspace, $post, $baseContext, $brand, $this->mode);
         $rendered = $this->renderRegeneratedImage($workspace, $post, $copy, $baseContext, $brand);
         $newMediaItem = $this->replaceMediaOnPost($post, $target, $workspace, $rendered);
 
@@ -133,8 +135,13 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   change_mode: 'image_only'|'text_only'|'both'
      * }
      */
-    private function regenerateSlideCopy(Workspace $workspace, Post $post, array $baseContext, ResolvedBrand $brand): array
-    {
+    private function regenerateSlideCopy(
+        Workspace $workspace,
+        Post $post,
+        array $baseContext,
+        ResolvedBrand $brand,
+        MediaRegenerationMode $mode,
+    ): array {
         /** @var PostImageRegenerator $agent */
         $agent = app(PostImageRegenerator::class, [
             'workspace' => $workspace,
@@ -147,6 +154,7 @@ class RegeneratePostMediaImage implements ShouldQueue
             'body' => data_get($baseContext, 'body'),
             'keywords' => data_get($baseContext, 'keywords'),
             'language' => data_get($baseContext, 'language'),
+            'mode' => $mode->value,
         ], JSON_THROW_ON_ERROR));
 
         RecordAiUsage::recordText(
@@ -166,7 +174,7 @@ class RegeneratePostMediaImage implements ShouldQueue
             ],
         );
 
-        return $this->mergeStructuredCopy($baseContext, $response->structured ?? []);
+        return $this->mergeStructuredCopy($baseContext, $response->structured ?? [], $mode);
     }
 
     /**
@@ -189,11 +197,13 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   change_mode: 'image_only'|'text_only'|'both'
      * }
      */
-    private function mergeStructuredCopy(array $baseContext, array $structured): array
-    {
-        $changeMode = $this->resolveChangeMode((string) data_get($structured, 'change_mode', 'both'));
-        $regenerateImage = in_array($changeMode, ['image_only', 'both'], true);
-        $regenerateText = in_array($changeMode, ['text_only', 'both'], true);
+    private function mergeStructuredCopy(
+        array $baseContext,
+        array $structured,
+        MediaRegenerationMode $mode,
+    ): array {
+        $regenerateImage = $mode->regeneratesImage();
+        $regenerateText = $mode->regeneratesText();
         $keywords = $this->normalizeKeywords(data_get($structured, 'keywords', data_get($baseContext, 'keywords')));
 
         return [
@@ -206,7 +216,7 @@ class RegeneratePostMediaImage implements ShouldQueue
             'keywords' => $regenerateImage && $keywords !== [] ? $keywords : data_get($baseContext, 'keywords'),
             'regenerate_image' => $regenerateImage,
             'regenerate_text' => $regenerateText,
-            'change_mode' => $changeMode,
+            'change_mode' => $mode->value,
         ];
     }
 
@@ -440,17 +450,6 @@ class RegeneratePostMediaImage implements ShouldQueue
             ->map(fn (string $keyword) => trim($keyword))
             ->values()
             ->all();
-    }
-
-    /**
-     * @return 'image_only'|'text_only'|'both'
-     */
-    private function resolveChangeMode(string $value): string
-    {
-        return match ($value) {
-            'image_only', 'text_only', 'both' => $value,
-            default => 'both',
-        };
     }
 
     private function resolveSocialAccount(Post $post, Workspace $workspace): ?SocialAccount

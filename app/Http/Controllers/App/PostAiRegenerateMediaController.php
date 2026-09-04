@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\App;
 
+use App\Enums\Ai\MediaRegenerationMode;
 use App\Enums\Media\Source;
 use App\Http\Requests\App\Ai\RegeneratePostMediaImageRequest;
 use App\Jobs\Ai\RegeneratePostMediaImage;
@@ -50,6 +51,7 @@ class PostAiRegenerateMediaController extends Controller
         }
 
         $regenerationId = $request->string('regeneration_id')->toString();
+        $mode = MediaRegenerationMode::from($request->string('mode')->toString());
 
         RegeneratePostMediaImage::dispatch(
             workspaceId: $workspace->id,
@@ -58,6 +60,7 @@ class PostAiRegenerateMediaController extends Controller
             mediaId: $mediaId,
             regenerationId: $regenerationId,
             instruction: $request->string('instruction')->toString(),
+            mode: $mode,
         );
 
         return response()->json([
