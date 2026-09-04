@@ -6,6 +6,7 @@ import { computed, onUnmounted, ref, watch } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import AiGenerateDialog from '@/components/posts/ai/AiGenerateDialog.vue';
+import AiRegenerateCaptionDialog from '@/components/posts/ai/AiRegenerateCaptionDialog.vue';
 import AiRegenerateImageDialog from '@/components/posts/ai/AiRegenerateImageDialog.vue';
 import AiReviewDialog from '@/components/posts/ai/AiReviewDialog.vue';
 import PostEditorActionBar from '@/components/posts/editor/PostEditorActionBar.vue';
@@ -190,6 +191,7 @@ const isSubmitting = ref(false);
 const isSaving = ref(false);
 const showSaved = ref(false);
 const isAiGenerateOpen = ref(false);
+const isAiRegenerateCaptionOpen = ref(false);
 const isAiReviewOpen = ref(false);
 const isAiRegenerateImageOpen = ref(false);
 const selectedAiMediaId = ref<string | null>(null);
@@ -506,6 +508,9 @@ usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
                             :allow-ai-regenerate="!isLocked"
                             :read-only="!canCreatePost"
                             @open-ai-generate="isAiGenerateOpen = true"
+                            @open-ai-regenerate-caption="
+                                isAiRegenerateCaptionOpen = true
+                            "
                             @open-ai-review="isAiReviewOpen = true"
                             @open-ai-regenerate-image="onOpenAiRegenerateImage"
                         />
@@ -579,6 +584,13 @@ usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
         :post-id="post.id"
         :current-content="content"
         @apply="onAiGenerateApply"
+    />
+
+    <AiRegenerateCaptionDialog
+        v-model:open="isAiRegenerateCaptionOpen"
+        :post-id="post.id"
+        :content="content"
+        @apply="content = $event"
     />
 
     <AiReviewDialog

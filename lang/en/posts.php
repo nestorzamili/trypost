@@ -274,6 +274,16 @@ return [
                 'not_ai_media' => 'Only AI-generated media can be regenerated.',
             ],
         ],
+        'regenerate_caption' => [
+            'button_tooltip' => 'Regenerate caption',
+            'title' => 'Regenerate caption',
+            'description' => 'Create a new caption while keeping you in control of what is applied to the draft.',
+            'instruction_placeholder' => 'Optional: e.g. make it more concise',
+            'start' => 'Generate',
+            'apply' => 'Apply caption',
+            'retry' => 'Regenerate again',
+            'cancel' => 'Cancel',
+        ],
         'templates' => [
             'image_card' => [
                 'name' => 'Image post',

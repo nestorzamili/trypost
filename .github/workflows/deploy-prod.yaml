@@ -1,9 +1,6 @@
 name: TryPost Production Pipeline
 
 on:
-  push:
-    branches:
-      - samunu
   workflow_dispatch:
 
 permissions:

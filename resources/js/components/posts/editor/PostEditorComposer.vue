@@ -82,6 +82,7 @@ const media = defineModel<MediaItem[]>('media', { required: true });
 
 const emit = defineEmits<{
     (e: 'open-ai-generate'): void;
+    (e: 'open-ai-regenerate-caption'): void;
     (e: 'open-ai-review'): void;
     (e: 'open-ai-regenerate-image', mediaId: string): void;
 }>();
@@ -516,6 +517,24 @@ const onAltTextSave = (alt: string): void => {
                         </TooltipTrigger>
                         <TooltipContent>{{
                             $t('posts.ai.generate.button_tooltip')
+                        }}</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider v-if="allowAiRegenerate">
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <button
+                                type="button"
+                                data-testid="regenerate-caption"
+                                class="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border-2 border-foreground bg-card text-foreground shadow-2xs transition-all hover:-translate-y-0.5 hover:bg-violet-100 hover:shadow-sm"
+                                @click="emit('open-ai-regenerate-caption')"
+                            >
+                                <IconRefresh class="size-4" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{{
+                            $t('posts.ai.regenerate_caption.button_tooltip')
                         }}</TooltipContent>
                     </Tooltip>
                 </TooltipProvider>

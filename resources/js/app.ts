@@ -7,6 +7,7 @@ import { i18nVue } from 'laravel-vue-i18n';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 
+import Toast from './components/Toast.vue';
 import { initializeDataLayer } from './datalayer';
 import dayjs from './dayjs';
 import { syncContentTypeMediaRules } from './lib/contentTypeMediaRules';
@@ -15,7 +16,6 @@ import {
     initializePostHog,
     syncPostHogContext,
 } from './posthog';
-import Toast from './components/Toast.vue';
 import type { Auth } from './types';
 
 const appName = import.meta.env.VITE_APP_NAME || 'TryPost.it';

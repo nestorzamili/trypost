@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import {
-    IconLoader2,
-    IconPhotoPlus,
-    IconTrash,
-} from '@tabler/icons-vue';
+import { IconLoader2, IconPhotoPlus, IconTrash } from '@tabler/icons-vue';
 import { ref } from 'vue';
 
 import {

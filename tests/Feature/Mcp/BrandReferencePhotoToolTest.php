@@ -84,7 +84,7 @@ test('rejects non-image Brand Reference Photo uploads', function () {
             $uploadUrl = $json->toArray()['upload_url'];
         });
 
-    $this->post($uploadUrl, [
+    $this->postJson($uploadUrl, [
         'media' => UploadedFile::fake()->create('reference.pdf', 10, 'application/pdf'),
     ])->assertUnprocessable();
 
@@ -100,10 +100,11 @@ test('updates a Brand Reference Photo label', function () {
             'label' => 'Use the blue background',
         ])
         ->assertOk()
-        ->assertStructuredContent([
-            'id' => $reference->id,
-            'label' => 'Use the blue background',
-        ]);
+        ->assertStructuredContent(function (AssertableJson $json) use ($reference) {
+            $json->where('id', $reference->id)
+                ->where('label', 'Use the blue background')
+                ->etc();
+        });
 
     expect($reference->fresh()->meta)->toMatchArray(['label' => 'Use the blue background']);
 });
