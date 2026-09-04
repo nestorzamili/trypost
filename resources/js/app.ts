@@ -15,6 +15,7 @@ import {
     initializePostHog,
     syncPostHogContext,
 } from './posthog';
+import Toast from './components/Toast.vue';
 import type { Auth } from './types';
 
 const appName = import.meta.env.VITE_APP_NAME || 'TryPost.it';
@@ -61,7 +62,7 @@ createInertiaApp({
             capturePageview();
         });
 
-        createApp({ render: () => h(App, props) })
+        createApp({ render: () => [h(App, props), h(Toast)] })
             .use(i18nVue, {
                 lang: locale,
                 resolve: async (lang: string) => {

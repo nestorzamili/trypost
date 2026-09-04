@@ -4,7 +4,6 @@ import { onBeforeUnmount, onMounted } from 'vue';
 
 import AppHeader from '@/components/AppHeader.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
-import Toast from '@/components/Toast.vue';
 import {
     SidebarInset,
     SidebarProvider,
@@ -82,5 +81,4 @@ onBeforeUnmount(() => {
             </div>
         </SidebarInset>
     </SidebarProvider>
-    <Toast />
 </template>

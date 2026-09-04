@@ -17,6 +17,10 @@ Route::post('/uploads/{token}', [UploadController::class, 'store'])
     ->middleware(['signed', 'throttle:signed-uploads'])
     ->whereUuid('token')
     ->name('api.uploads.store');
+Route::post('/brand-reference-uploads/{token}', [UploadController::class, 'storeBrandReferencePhoto'])
+    ->middleware(['signed', 'throttle:signed-uploads'])
+    ->whereUuid('token')
+    ->name('api.brand-reference-uploads.store');
 
 Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(function () {
     // Posts

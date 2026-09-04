@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\StoreBrandReferencePhotoUploadRequest;
 use App\Http\Requests\Api\StoreUploadRequest;
+use App\Http\Resources\Api\BrandReferencePhotoResource;
 use App\Http\Resources\Api\MediaUploadResource;
 use App\Models\Media;
 use App\Models\Workspace;
@@ -24,6 +26,63 @@ class UploadController extends Controller
      * Survives across MCP and any other client that POSTs the signed URL.
      */
     private const CLAIM_CACHE_PREFIX = 'media:signed-upload:';
+
+    public function storeBrandReferencePhoto(StoreBrandReferencePhotoUploadRequest $request, string $token): JsonResponse
+    {
+        $expiresAt = (int) $request->query('expires');
+        $ttl = max(
+            self::CACHE_TTL_BUFFER_SECONDS,
+            $expiresAt - now()->timestamp + self::CACHE_TTL_BUFFER_SECONDS,
+        );
+        $cacheKey = self::CLAIM_CACHE_PREFIX.$token;
+
+        if (! Cache::add($cacheKey, true, $ttl)) {
+            abort(Response::HTTP_CONFLICT);
+        }
+
+        if (Media::where('upload_token', $token)->exists()) {
+            abort(Response::HTTP_CONFLICT);
+        }
+
+        try {
+            $workspace = Workspace::findOrFail((string) $request->query('workspace_id'));
+            $file = $request->file('media');
+            $path = $file->getRealPath();
+
+            if ($path === false) {
+                abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'Unable to read uploaded file.');
+            }
+
+            $media = DB::transaction(function () use ($workspace, $file, $path, $token, $request): Media {
+                $meta = [];
+                $label = $request->query('label');
+
+                if (is_string($label) && $label !== '') {
+                    $meta['label'] = $label;
+                }
+
+                $media = $workspace->addMediaFromPath(
+                    $path,
+                    $file->getClientOriginalName(),
+                    'brand_references',
+                    $meta,
+                    mimeType: (string) $file->getMimeType(),
+                );
+                $media->upload_token = $token;
+                $media->save();
+
+                return $media;
+            });
+        } catch (Throwable $e) {
+            Cache::forget($cacheKey);
+
+            throw $e;
+        }
+
+        return BrandReferencePhotoResource::make($media)
+            ->response()
+            ->setStatusCode(Response::HTTP_CREATED);
+    }
 
     public function store(StoreUploadRequest $request, string $token): JsonResponse
     {

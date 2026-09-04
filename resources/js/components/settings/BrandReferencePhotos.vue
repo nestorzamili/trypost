@@ -4,7 +4,6 @@ import {
     IconLoader2,
     IconPhotoPlus,
     IconTrash,
-    IconUserCheck,
 } from '@tabler/icons-vue';
 import { ref } from 'vue';
 
@@ -108,12 +107,9 @@ const handleDelete = async (mediaId: string) => {
     <section class="grid gap-4 border-t-2 border-foreground pt-8">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="grid gap-1">
-                <div class="flex items-center gap-2">
-                    <IconUserCheck class="size-5 text-primary" />
-                    <h2 class="text-lg font-bold">
-                        {{ $t('settings.brand.reference_photos_title') }}
-                    </h2>
-                </div>
+                <h2 class="text-lg font-bold">
+                    {{ $t('settings.brand.reference_photos_title') }}
+                </h2>
                 <p class="text-sm text-muted-foreground">
                     {{ $t('settings.brand.reference_photos_description') }}
                 </p>

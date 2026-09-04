@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { onMounted, watch } from 'vue';
+import { watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 import { Toaster } from '@/components/ui/sonner';
@@ -42,14 +42,10 @@ const showFlash = (flash: Flash | undefined) => {
     if (flash.info) toast.info(flash.info);
 };
 
-onMounted(() => {
-    showFlash(page.props.flash as Flash | undefined);
-});
-
 watch(
     () => page.props.flash,
     (flash) => showFlash(flash as Flash | undefined),
-    { deep: true },
+    { immediate: true },
 );
 </script>
 
