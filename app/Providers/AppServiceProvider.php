@@ -26,6 +26,8 @@ use App\Models\SocialAccount;
 use App\Models\Subscription;
 use App\Models\SubscriptionItem;
 use App\Models\User;
+use App\Models\Webhook;
+use App\Models\WebhookLog;
 use App\Models\Workspace;
 use App\Models\WorkspaceConversation;
 use App\Models\WorkspaceConversationMessage;
@@ -123,6 +125,8 @@ class AppServiceProvider extends ServiceProvider
             'subscription' => Subscription::class,
             'subscriptionItem' => SubscriptionItem::class,
             'user' => User::class,
+            'webhook' => Webhook::class,
+            'webhookLog' => WebhookLog::class,
             'workspace' => Workspace::class,
             'workspaceConversation' => WorkspaceConversation::class,
             'workspaceConversationMessage' => WorkspaceConversationMessage::class,

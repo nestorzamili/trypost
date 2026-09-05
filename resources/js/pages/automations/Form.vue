@@ -33,7 +33,6 @@ import GenerateNodeConfig from '@/components/automations/config/GenerateNodeConf
 import HttpRequestNodeConfig from '@/components/automations/config/HttpRequestNodeConfig.vue';
 import PublishNodeConfig from '@/components/automations/config/PublishNodeConfig.vue';
 import TriggerNodeConfig from '@/components/automations/config/TriggerNodeConfig.vue';
-import WebhookNodeConfig from '@/components/automations/config/WebhookNodeConfig.vue';
 import EditorSidebar from '@/components/automations/EditorSidebar.vue';
 import ConditionNode from '@/components/automations/nodes/ConditionNode.vue';
 import DelayNode from '@/components/automations/nodes/DelayNode.vue';
@@ -43,7 +42,6 @@ import GenerateNode from '@/components/automations/nodes/GenerateNode.vue';
 import HttpRequestNode from '@/components/automations/nodes/HttpRequestNode.vue';
 import PublishNode from '@/components/automations/nodes/PublishNode.vue';
 import TriggerNode from '@/components/automations/nodes/TriggerNode.vue';
-import WebhookNode from '@/components/automations/nodes/WebhookNode.vue';
 import { Button } from '@/components/ui/button';
 import {
     Tooltip,
@@ -85,7 +83,6 @@ const nodeTypes = {
     [NodeType.Delay]: markRaw(DelayNode),
     [NodeType.Condition]: markRaw(ConditionNode),
     [NodeType.Publish]: markRaw(PublishNode),
-    [NodeType.Webhook]: markRaw(WebhookNode),
     [NodeType.End]: markRaw(EndNode),
     [NodeType.FetchRss]: markRaw(FetchRssNode),
     [NodeType.HttpRequest]: markRaw(HttpRequestNode),
@@ -97,7 +94,6 @@ const configByType: Record<string, unknown> = {
     [NodeType.Delay]: DelayNodeConfig,
     [NodeType.Condition]: ConditionNodeConfig,
     [NodeType.Publish]: PublishNodeConfig,
-    [NodeType.Webhook]: WebhookNodeConfig,
     [NodeType.End]: EndNodeConfig,
     [NodeType.FetchRss]: FetchRssNodeConfig,
     [NodeType.HttpRequest]: HttpRequestNodeConfig,
@@ -117,8 +113,6 @@ const edges = ref<Edge[]>(hydrateEdges(props.automation.connections ?? []));
 const selectedNodeId = ref<string | null>(null);
 const selectedEdgeId = ref<string | null>(null);
 const variables = ref<AutomationVariable[]>(props.automation.variables ?? []);
-
-const configIssue = computed(() => firstConfigIssue(nodes.value));
 
 watch(
     () => [props.automation.nodes, props.automation.connections] as const,
@@ -295,53 +289,32 @@ const updateSelectedConfig = (newData: Record<string, unknown>) => {
 
 const defaultConfigFor = (type: string): Record<string, unknown> => {
     switch (type) {
-        case NodeType.Trigger:
-            return {
-                trigger_type: TriggerType.Schedule,
-                cron: '0 9 * * *',
-                schedule_field: ScheduleField.Days,
-                schedule_days_interval: 1,
-                schedule_hour: 9,
-                schedule_minute: 0,
-                schedule_timezone:
-                    Intl.DateTimeFormat().resolvedOptions().timeZone,
-            };
-        case NodeType.Generate:
-            return { accounts: [], prompt_template: '', target_slide_count: 1 };
-        case NodeType.Delay:
-            return { duration: 1, unit: DelayUnit.Hours };
-        case NodeType.Condition:
-            return {
-                field: '',
-                operator: ConditionOperator.Contains,
-                value: '',
-            };
-        case NodeType.Publish:
-            return { mode: PublishMode.Now, scheduled_offset: 60 };
-        case NodeType.Webhook:
-            return {
-                url: '',
-                method: HttpMethod.Post,
-                headers: {},
-                payload_template: '{}',
-            };
-        case NodeType.End:
-            return { reason: '' };
-        case NodeType.FetchRss:
-            return { feed_url: '' };
-        case NodeType.HttpRequest:
-            return {
-                url: '',
-                method: HttpMethod.Get,
-                auth_type: AuthType.None,
-                headers: {},
-                body_template: '',
-                items_path: '',
-                item_key_path: '',
-                item_date_path: '',
-            };
-        default:
-            return {};
+        case NodeType.Trigger: return {
+            trigger_type: TriggerType.Schedule,
+            cron: '0 9 * * *',
+            schedule_field: ScheduleField.Days,
+            schedule_days_interval: 1,
+            schedule_hour: 9,
+            schedule_minute: 0,
+            schedule_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        };
+        case NodeType.Generate: return { accounts: [], prompt_template: '', target_slide_count: 1 };
+        case NodeType.Delay: return { duration: 1, unit: DelayUnit.Hours };
+        case NodeType.Condition: return { field: '', operator: ConditionOperator.Contains, value: '' };
+        case NodeType.Publish: return { mode: PublishMode.Now, scheduled_offset: 60 };
+        case NodeType.End: return { reason: '' };
+        case NodeType.FetchRss: return { feed_url: '' };
+        case NodeType.HttpRequest: return {
+            url: '',
+            method: HttpMethod.Get,
+            auth_type: AuthType.None,
+            headers: {},
+            body_template: '',
+            items_path: '',
+            item_key_path: '',
+            item_date_path: '',
+        };
+        default: return {};
     }
 };
 
@@ -624,7 +597,6 @@ const defaultEdgeOptions = {
                     v-model:variables="variables"
                     :automation-id="automation.id"
                     :before-run="save"
-                    :config-issue="configIssue"
                     :editing="!!selectedNode"
                     :node-title="
                         selectedNode
