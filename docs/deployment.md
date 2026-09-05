@@ -6,35 +6,17 @@ tags it with the first seven characters of the commit SHA, pushes it to GHCR,
 and — unless started in build-only mode — deploys that image to the VM
 through SSH.
 
-TryPost uses its own PostgreSQL and Redis containers. Existing containers such
-as `scsme-db`, `scsme-redis`, and `redis-shared` are not used or modified.
-The existing host Nginx proxies application traffic to `127.0.0.1:8000` and
-Reverb traffic to `127.0.0.1:8080`.
-
 ## Starting a run
 
-Two inputs are offered when starting the workflow:
+| Input | Description |
+|---|---|
+| `mode` | `build-and-deploy` (default) or `build-only` (image only, VM untouched) |
+| `public_host` | Optional per-run host override. Empty falls back to the stored variable |
+| `platform` | Target image platform (`linux/amd64` default). Match the VM architecture |
 
-| Input | Type | Description |
-|---|---|---|
-| `mode` | `build-and-deploy` (default) or `build-only` | `build-only` builds and pushes the image without touching the VM |
-| `public_host` | Optional string | Host override for this run only. Empty means the `TRYPOST_PUBLIC_HOST` repository variable is used |
-| `platform` | `linux/amd64` (default) or `linux/arm64` | Target image platform. Match this to the VM architecture (`uname -m`: `x86_64` → amd64, `aarch64` → arm64). The build job automatically picks a native runner per platform (`ubuntu-24.04-arm` for arm64) so there is no QEMU emulation slowdown, and BuildKit layer caching (`type=gha`) speeds up repeat builds |
-
-The resolved host must be a bare hostname (no protocol, path, or port) and is
-validated before the build starts. The run summary shows the mode, image tag
-and digest, and resolved host. In `build-only` mode the summary also shows
-the manual `docker compose` command to deploy the built image later.
-
-Note that the host input only affects the **build-time** `VITE_REVERB_HOST`
-baked into the image. Pointing a new domain at the stack still requires the
-manual server steps below (VM `.env`, Nginx, DNS, certificate).
-
-When changing the workflow itself, validate in this order: first a
-`build-only` run without input (uses the stored variable), then a
-`build-only` run with a `public_host` override (check the summary shows the
-override), and only then a regular `build-and-deploy` run to confirm no
-regression.
+The host must be a bare hostname and is validated before the build. Note it
+only affects the build-time `VITE_REVERB_HOST`; the server steps below (VM
+`.env`, Nginx, DNS, certificate) stay manual.
 
 ## GitHub Actions configuration
 
@@ -53,19 +35,14 @@ Only the deploy job uses this environment.
 
 ### Variables
 
-Create the following variable under the repository's **Actions variables**
-(Settings → Secrets and variables → Actions → Variables tab), not under the
-environment. It is a public hostname, not a secret, and the build job reads
-it without the production environment so build-only runs stay frictionless.
+Create this repository variable (Actions variables tab, not the environment):
 
 | Name | Required | Description |
 |---|---:|---|
-| `TRYPOST_PUBLIC_HOST` | Yes, unless `public_host` is passed | Repository variable containing the public hostname without protocol or path, for example `post.example.com` |
-| Other variables | No | No optional GitHub variables are currently used |
+| `TRYPOST_PUBLIC_HOST` | Yes, unless `public_host` is passed | Public hostname, for example `post.example.com` |
 
-> One-time move: if `TRYPOST_PUBLIC_HOST` still lives under the `production`
-> environment variables, recreate it as a repository variable with the same
-> value and delete the environment copy.
+> If it still lives under the `production` environment variables, move it to
+> a repository variable and delete the environment copy.
 
 ### Build arguments
 
@@ -93,7 +70,7 @@ If required, grant the deployment user Docker access. Docker group membership
 is root-equivalent:
 
 ```bash
-sudo usermod -aG docker <deploy-user>
+sudo usermod -aG docker $USER
 ```
 
 The VM must have `curl`, Docker Compose v2, and an `/opt/trypost` directory.
@@ -104,16 +81,12 @@ Create the application directory if needed:
 
 ```bash
 sudo mkdir -p /opt/trypost
-sudo chown <deploy-user>:<deploy-user> /opt/trypost
+sudo chown -R $USER:$USER /opt/trypost
 ```
 
 Keep the production `.env` file at `/opt/trypost/.env` with mode `600`.
 
 ## Host Nginx
-
-The production VM runs Ubuntu Nginx `1.24.0` as a systemd service. It includes
-`/etc/nginx/sites-enabled/*` and already owns ports 80 and 443. Ports 8000 and
-8080 are available for the TryPost container bindings.
 
 Create a dedicated HTTP site file without changing the existing virtual
 hosts. Replace `post.example.com` with the value of `TRYPOST_PUBLIC_HOST`:
@@ -172,21 +145,6 @@ sudo certbot --nginx --redirect -d post.example.com
 ```
 
 Certbot will add the TLS directives and HTTP-to-HTTPS redirect to the site.
-Verify automatic renewal:
-
-```bash
-systemctl is-enabled certbot.timer
-sudo certbot renew --dry-run
-```
-
-If the timer is not enabled:
-
-```bash
-sudo systemctl enable --now certbot.timer
-```
-
-Do not enable the Caddy profile because host Nginx already owns ports 80 and
-443.
 
 ## Compose and image reference
 
