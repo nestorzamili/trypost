@@ -9,13 +9,14 @@ use App\Http\Controllers\App\AutomationController;
 use App\Http\Controllers\App\BillingController;
 use App\Http\Controllers\App\BrandReferencePhotoController;
 use App\Http\Controllers\App\BrandVariantController;
+use App\Http\Controllers\App\ChatController;
+use App\Http\Controllers\App\ChatMessageController;
 use App\Http\Controllers\App\DiscordController as AppDiscordController;
 use App\Http\Controllers\App\GiphyController;
 use App\Http\Controllers\App\LinkPreviewController;
 use App\Http\Controllers\App\McpSettingsController;
 use App\Http\Controllers\App\NotificationController;
 use App\Http\Controllers\App\OnboardingController;
-use App\Http\Controllers\App\PostAiCreateController;
 use App\Http\Controllers\App\PostAiGenerateController;
 use App\Http\Controllers\App\PostAiRegenerateCaptionController;
 use App\Http\Controllers\App\PostAiRegenerateMediaController;
@@ -197,6 +198,25 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('accounts', [SocialController::class, 'index'])->name('app.accounts');
     Route::put('accounts/{account}/toggle', [SocialController::class, 'toggleActive'])->name('app.accounts.toggle');
 
+    // Chat
+    Route::get('chat', [ChatController::class, 'index'])->name('app.chat');
+    Route::post('chat/{conversation}', [ChatMessageController::class, 'store'])
+        ->whereUuid('conversation')
+        ->middleware('throttle:20,1')
+        ->name('app.chat.messages.store');
+    Route::post('chat/{conversation}/cancel', [ChatMessageController::class, 'cancel'])
+        ->whereUuid('conversation')
+        ->name('app.chat.messages.cancel');
+    Route::get('chat/{conversation}', [ChatController::class, 'show'])
+        ->whereUuid('conversation')
+        ->name('app.chat.show');
+    Route::patch('chat/{conversation}', [ChatController::class, 'update'])
+        ->whereUuid('conversation')
+        ->name('app.chat.update');
+    Route::delete('chat/{conversation}', [ChatController::class, 'destroy'])
+        ->whereUuid('conversation')
+        ->name('app.chat.destroy');
+
     // Analytics
     Route::get('analytics', [AnalyticsController::class, 'index'])->name('app.analytics');
     Route::get('analytics/{account}', [AnalyticsController::class, 'show'])->name('app.analytics.show');
@@ -206,7 +226,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
 
     // Posts
     Route::get('posts/{status?}', [PostController::class, 'index'])->name('app.posts.index')->where('status', 'draft|scheduled|published');
-    Route::get('posts/create', [PostController::class, 'create'])->name('app.posts.create');
     Route::post('posts', [PostController::class, 'store'])->name('app.posts.store');
     Route::get('posts/{post}/edit', [PostController::class, 'edit'])->name('app.posts.edit');
     Route::get('posts/{post}', [PostController::class, 'show'])->name('app.posts.show');
@@ -223,8 +242,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('posts/{post}/ai/regenerate-caption', [PostAiRegenerateCaptionController::class, 'regenerate'])->name('app.posts.ai.regenerate-caption');
     Route::post('posts/{post}/media/{mediaId}/ai/regenerate', [PostAiRegenerateMediaController::class, 'regenerate'])->name('app.posts.ai.regenerate-media');
     Route::post('posts/{post}/ai/review', [PostAiReviewController::class, 'review'])->name('app.posts.ai.review');
-    Route::post('posts/ai/create', [PostAiCreateController::class, 'start'])->name('app.posts.ai.create');
-    Route::get('posts/ai/{creationId}/loading', [PostAiCreateController::class, 'loading'])->name('app.posts.ai.loading')->whereUuid('creationId');
 
     // Post Comments
     Route::get('posts/{post}/comments', [PostCommentController::class, 'index'])->name('app.posts.comments.index');

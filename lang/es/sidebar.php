@@ -27,6 +27,10 @@ return [
     'automations' => 'Automatizaciones',
     'onboarding' => 'Primeros pasos',
     'onboarding_hint' => 'Termina la configuración',
+    'chat' => 'Chat',
+    'chat_history' => 'Historial',
+    'new_chat' => 'Nuevo chat',
+    'no_chats' => 'Aún no hay chats',
     'posts' => [
         'calendar' => 'Calendario',
         'all' => 'Todos',

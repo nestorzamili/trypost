@@ -16,6 +16,10 @@ services:
             TRYPOST_DOCKER_BOOTSTRAP: '1'
             UID: ${UID:-1000}
             GID: ${GID:-1000}
+            # Bind mounts on Windows/macOS don't propagate file-watch events
+            # into the container — without polling, vite HMR silently stops
+            # noticing edits (see server.watch in vite.config.ts).
+            VITE_WATCH_POLLING: '1'
             # Real env vars take precedence over .env.testing (which pins
             # DB_HOST=127.0.0.1, DB_USERNAME=root). Without these, the test
             # suite can't see Postgres / Redis from inside the container.

@@ -22,9 +22,9 @@ import dayjs from '@/dayjs';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { calendar } from '@/routes/app';
 import {
-    create as createPost,
     edit as editPost,
     show as showPost,
+    store as storePost,
 } from '@/routes/app/posts';
 import { PostStatus } from '@/types/post';
 
@@ -69,8 +69,18 @@ const props = defineProps<Props>();
 const isMobile = ref(false);
 const { canCreatePost } = useWorkspaceRole();
 
-const createPostUrl = (isoDate: string | null = null) =>
-    isoDate ? createPost.url({ query: { date: isoDate } }) : createPost.url();
+const creatingPost = ref(false);
+
+const createPost = (isoDate: string | null = null) => {
+    if (creatingPost.value) return;
+
+    creatingPost.value = true;
+    router.post(storePost.url(), isoDate ? { date: isoDate } : {}, {
+        onFinish: () => {
+            creatingPost.value = false;
+        },
+    });
+};
 const checkMobile = () => {
     isMobile.value = window.innerWidth < 1024;
 };
@@ -335,15 +345,15 @@ const formatTime = (scheduledAt: string): string => {
                         />
                     </div>
                 </div>
-                <Link
+                <Button
                     v-if="canCreatePost"
-                    :href="createPost.url()"
-                    class="block"
+                    class="w-full"
+                    data-testid="calendar-create-post-mobile"
+                    :loading="creatingPost"
+                    @click="createPost()"
                 >
-                    <Button class="w-full">{{
-                        $t('calendar.new_post')
-                    }}</Button>
-                </Link>
+                    {{ $t('calendar.new_post') }}
+                </Button>
             </header>
 
             <!-- Desktop header: nav · title · view switcher + new post -->
@@ -386,9 +396,14 @@ const formatTime = (scheduledAt: string): string => {
                         </TabsList>
                     </Tabs>
 
-                    <Link v-if="canCreatePost" :href="createPost.url()">
-                        <Button>{{ $t('calendar.new_post') }}</Button>
-                    </Link>
+                    <Button
+                        v-if="canCreatePost"
+                        data-testid="calendar-create-post-desktop"
+                        :loading="creatingPost"
+                        @click="createPost()"
+                    >
+                        {{ $t('calendar.new_post') }}
+                    </Button>
                 </div>
             </header>
 
@@ -567,13 +582,16 @@ const formatTime = (scheduledAt: string): string => {
                     <!-- Day Content -->
                     <div class="flex-1 space-y-2 overflow-y-auto p-2">
                         <!-- Add Post Button -->
-                        <Link
+                        <button
                             v-if="canCreatePost"
-                            :href="createPostUrl(day.format('YYYY-MM-DD'))"
-                            class="flex w-full items-center justify-center rounded-md border-2 border-dashed border-foreground/25 p-2 text-foreground/60 transition-colors hover:border-foreground hover:bg-foreground/5 hover:text-foreground"
+                            type="button"
+                            :data-testid="`calendar-create-post-day-column-${day.format('YYYY-MM-DD')}`"
+                            :disabled="creatingPost"
+                            class="flex w-full items-center justify-center rounded-md border-2 border-dashed border-foreground/25 p-2 text-foreground/60 transition-colors hover:border-foreground hover:bg-foreground/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                            @click="createPost(day.format('YYYY-MM-DD'))"
                         >
                             <IconPlus class="size-4" />
-                        </Link>
+                        </button>
 
                         <!-- Posts -->
                         <Link
@@ -726,18 +744,21 @@ const formatTime = (scheduledAt: string): string => {
                                 >
                                     {{ day.format('D') }}
                                 </span>
-                                <Link
+                                <button
                                     v-if="canCreatePost"
-                                    :href="
-                                        createPostUrl(day.format('YYYY-MM-DD'))
+                                    type="button"
+                                    :data-testid="`calendar-create-post-month-cell-${day.format('YYYY-MM-DD')}`"
+                                    :disabled="creatingPost"
+                                    class="inline-flex size-6 items-center justify-center rounded-full border-2 border-foreground bg-card text-foreground opacity-0 shadow-2xs transition-all group-hover:opacity-100 hover:rotate-90 hover:bg-violet-100 focus:opacity-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                    @click="
+                                        createPost(day.format('YYYY-MM-DD'))
                                     "
-                                    class="inline-flex size-6 items-center justify-center rounded-full border-2 border-foreground bg-card text-foreground opacity-0 shadow-2xs transition-all group-hover:opacity-100 hover:rotate-90 hover:bg-violet-100 focus:opacity-100"
                                 >
                                     <IconPlus
                                         class="size-3.5"
                                         stroke-width="3"
                                     />
-                                </Link>
+                                </button>
                             </div>
 
                             <!-- Posts -->

@@ -27,6 +27,10 @@ return [
     'automations' => 'Αυτοματισμοί',
     'onboarding' => 'Ξεκινώντας',
     'onboarding_hint' => 'Ολοκλήρωση ρύθμισης',
+    'chat' => 'Συνομιλία',
+    'chat_history' => 'Ιστορικό',
+    'new_chat' => 'Νέα συνομιλία',
+    'no_chats' => 'Δεν υπάρχουν συνομιλίες',
     'posts' => [
         'calendar' => 'Ημερολόγιο',
         'all' => 'Όλες',

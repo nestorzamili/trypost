@@ -143,18 +143,3 @@ export interface ContentLanguageOption {
     label: string;
     englishName?: string;
 }
-
-/**
- * An AI content template, as serialized by PostController::create from an
- * AiContentTemplate. Shared by the post-creation screen and the AI wizard —
- * declaring it in both places is what let them drift apart before.
- */
-export interface AiTemplate {
-    key: string;
-    name: string;
-    description: string;
-    preview: string;
-    needs_account: boolean;
-    supported_formats: string[];
-    applies_brand_visuals: boolean;
-}

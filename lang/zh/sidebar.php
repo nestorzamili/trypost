@@ -27,6 +27,10 @@ return [
     'automations' => '自动化',
     'onboarding' => '开始使用',
     'onboarding_hint' => '完成设置',
+    'chat' => '聊天',
+    'chat_history' => '历史记录',
+    'new_chat' => '新聊天',
+    'no_chats' => '暂无聊天',
     'posts' => [
         'calendar' => '日历',
         'all' => '全部',

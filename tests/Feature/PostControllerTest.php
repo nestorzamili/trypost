@@ -257,41 +257,12 @@ test('calendar does not include unscheduled drafts', function () {
         );
 });
 
-// Create tests
-test('create requires authentication', function () {
-    $response = $this->get(route('app.posts.create'));
-
-    $response->assertRedirect(route('login'));
-});
-
-test('create renders the wizard page', function () {
-    $response = $this->actingAs($this->user)->get(route('app.posts.create'));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('posts/Create', false)
-        ->where('date', null)
-        ->has('socialAccounts', 1)
-        ->where('socialAccounts.0.id', $this->socialAccount->id)
-    );
-});
-
-test('create forwards date query param to the page', function () {
-    $response = $this->actingAs($this->user)->get(route('app.posts.create', ['date' => '2026-06-01']));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('posts/Create', false)
-        ->where('date', '2026-06-01')
-    );
-});
-
-test('create redirects to workspaces.create when user has no workspace', function () {
-    $newUser = User::factory()->create();
-
-    $response = $this->actingAs($newUser)->get(route('app.posts.create'));
-
-    $response->assertRedirect(route('app.workspaces.create'));
+// The post-creation screen is gone: every entry point creates a draft
+// directly via POST /posts (which redirects to the editor). These routes
+// must stay unregistered so nothing links to the removed wizard.
+test('the creation screen and wizard endpoints no longer exist', function () {
+    $this->actingAs($this->user)->get('/posts/create')->assertNotFound();
+    $this->actingAs($this->user)->postJson('/posts/ai/create', [])->assertNotFound();
 });
 
 // Store tests

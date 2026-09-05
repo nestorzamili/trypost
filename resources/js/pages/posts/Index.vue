@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
+import { Head, InfiniteScroll, router } from '@inertiajs/vue3';
 import {
     IconCopy,
     IconCopyPlus,
@@ -12,12 +12,12 @@ import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 
 import {
-    create as createPost,
     destroy as destroyPost,
     duplicate as duplicatePost,
     edit as editPost,
     index as postsIndex,
     show as showPost,
+    store as storePost,
 } from '@/actions/App/Http/Controllers/App/PostController';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -206,8 +206,38 @@ const handleDelete = (post: Post) => {
     });
 };
 
+const duplicatingPost = ref(false);
+
 const handleDuplicate = (post: Post) => {
-    router.post(duplicatePost.url(post.id));
+    if (duplicatingPost.value) return;
+
+    duplicatingPost.value = true;
+    router.post(
+        duplicatePost.url(post.id),
+        {},
+        {
+            onFinish: () => {
+                duplicatingPost.value = false;
+            },
+        },
+    );
+};
+
+const creatingPost = ref(false);
+
+const createPost = () => {
+    if (creatingPost.value) return;
+
+    creatingPost.value = true;
+    router.post(
+        storePost.url(),
+        {},
+        {
+            onFinish: () => {
+                creatingPost.value = false;
+            },
+        },
+    );
 };
 
 const handleCopyId = (post: Post) =>
@@ -257,15 +287,15 @@ useWorkspaceEcho(
                     />
                 </div>
 
-                <Link
+                <Button
                     v-if="canCreatePost"
-                    :href="createPost.url()"
                     class="w-full sm:w-auto"
+                    data-testid="posts-create-post"
+                    :loading="creatingPost"
+                    @click="createPost"
                 >
-                    <Button class="w-full sm:w-auto">{{
-                        $t('posts.new_post')
-                    }}</Button>
-                </Link>
+                    {{ $t('posts.new_post') }}
+                </Button>
             </div>
 
             <EmptyState

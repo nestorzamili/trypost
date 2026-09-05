@@ -27,6 +27,10 @@ return [
     'automations' => 'الأتمتة',
     'onboarding' => 'البدء',
     'onboarding_hint' => 'أكمل الإعداد',
+    'chat' => 'محادثة',
+    'chat_history' => 'سجل المحادثات',
+    'new_chat' => 'محادثة جديدة',
+    'no_chats' => 'لا توجد محادثات بعد',
     'posts' => [
         'calendar' => 'التقويم',
         'all' => 'الكل',

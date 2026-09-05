@@ -27,6 +27,13 @@ return [
     'automations' => 'Automations',
     'onboarding' => 'Getting started',
     'onboarding_hint' => 'Finish setup',
+    'chat' => 'AI Assistant',
+    'chat_history' => 'Chat history',
+    'new_chat' => 'New chat',
+    'no_chats' => 'No chats yet',
+    'last_7_days' => 'Last 7 days',
+    'last_30_days' => 'Last 30 days',
+    'older' => 'Older',
     'posts' => [
         'calendar' => 'Calendar',
         'all' => 'All',

@@ -7,6 +7,7 @@ namespace App\Mcp\Tools\Post;
 use App\Actions\Post\DeletePost;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Post;
+use App\Support\PostStatusRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -34,6 +35,12 @@ class DeletePostTool extends Tool
 
         if ($denied = $this->denyUnlessCan($request, 'delete', $post, 'Not authorized to delete this post.')) {
             return $denied;
+        }
+
+        // Same rule the web UI and the chat delete_post tool enforce: a post
+        // already live on a platform can never actually be deleted.
+        if (PostStatusRules::blocksDeletion($post)) {
+            return Response::error('This post has already been published and cannot be deleted.');
         }
 
         DeletePost::execute($post);

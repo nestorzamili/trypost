@@ -27,6 +27,10 @@ return [
     'automations' => '자동화',
     'onboarding' => '시작하기',
     'onboarding_hint' => '설정 마치기',
+    'chat' => '채팅',
+    'chat_history' => '기록',
+    'new_chat' => '새 채팅',
+    'no_chats' => '아직 채팅이 없습니다',
     'posts' => [
         'calendar' => '캘린더',
         'all' => '전체',

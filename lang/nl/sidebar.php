@@ -27,6 +27,10 @@ return [
     'automations' => 'Automatiseringen',
     'onboarding' => 'Aan de slag',
     'onboarding_hint' => 'Setup afronden',
+    'chat' => 'Chat',
+    'chat_history' => 'Geschiedenis',
+    'new_chat' => 'Nieuwe chat',
+    'no_chats' => 'Nog geen chats',
     'posts' => [
         'calendar' => 'Kalender',
         'all' => 'Alle',

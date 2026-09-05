@@ -27,6 +27,10 @@ return [
     'automations' => 'Автоматизации',
     'onboarding' => 'Начало работы',
     'onboarding_hint' => 'Завершите настройку',
+    'chat' => 'Чат',
+    'chat_history' => 'История',
+    'new_chat' => 'Новый чат',
+    'no_chats' => 'Пока нет чатов',
     'posts' => [
         'calendar' => 'Календарь',
         'all' => 'Все',

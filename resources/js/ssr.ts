@@ -4,6 +4,8 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createSSRApp, DefineComponent, h } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 
+import AppShell from './layouts/AppShell.vue';
+import { usesAppShell } from './lib/appShell';
 import { syncContentTypeMediaRules } from './lib/contentTypeMediaRules';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -14,6 +16,7 @@ createServer(
             page,
             render: renderToString,
             title: (title) => (title ? `${title} - ${appName}` : appName),
+            layout: (name) => (usesAppShell(name) ? AppShell : undefined),
             resolve: (name) =>
                 resolvePageComponent(
                     `./pages/${name}.vue`,

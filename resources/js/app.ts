@@ -10,6 +10,8 @@ import { createApp, h } from 'vue';
 import Toast from './components/Toast.vue';
 import { initializeDataLayer } from './datalayer';
 import dayjs from './dayjs';
+import AppShell from './layouts/AppShell.vue';
+import { usesAppShell } from './lib/appShell';
 import { syncContentTypeMediaRules } from './lib/contentTypeMediaRules';
 import {
     capturePageview,
@@ -22,6 +24,7 @@ const appName = import.meta.env.VITE_APP_NAME || 'TryPost.it';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
+    layout: (name) => (usesAppShell(name) ? AppShell : undefined),
     resolve: (name) =>
         resolvePageComponent(
             `./pages/${name}.vue`,

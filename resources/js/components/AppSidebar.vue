@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import {
     IconAffiliate,
     IconAlertTriangle,
@@ -15,14 +15,15 @@ import {
     IconPhoto,
     IconPlugConnected,
     IconSelector,
+    IconSparkles,
     IconTag,
 } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import {
-    create as createPost,
     index as postsIndex,
+    store as storePost,
 } from '@/actions/App/Http/Controllers/App/PostController';
 import NavMain from '@/components/NavMain.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
@@ -46,7 +47,7 @@ import {
 } from '@/components/ui/sidebar';
 import WorkspaceMenuContent from '@/components/WorkspaceMenuContent.vue';
 import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
-import { accounts, analytics, calendar } from '@/routes/app';
+import { accounts, analytics, calendar, chat } from '@/routes/app';
 import { index as assets } from '@/routes/app/assets';
 import { index as automations } from '@/routes/app/automations';
 import { portal } from '@/routes/app/billing';
@@ -81,6 +82,23 @@ const {
 } = useWorkspaceRole();
 const { isMobile } = useSidebar();
 
+const creatingPost = ref(false);
+
+const createPost = () => {
+    if (creatingPost.value) return;
+
+    creatingPost.value = true;
+    router.post(
+        storePost.url(),
+        {},
+        {
+            onFinish: () => {
+                creatingPost.value = false;
+            },
+        },
+    );
+};
+
 const mainNavItems = computed<NavItem[]>(() => [
     {
         title: trans('sidebar.posts.calendar'),
@@ -91,6 +109,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: trans('sidebar.analytics'),
         href: analytics.url(),
         icon: IconChartBar,
+    },
+    {
+        title: trans('sidebar.chat'),
+        href: chat.url(),
+        icon: IconSparkles,
     },
     ...(canManageAutomations.value
         ? [
@@ -232,11 +255,14 @@ const workspaceNavItems = computed<NavItem[]>(() => [
 
         <SidebarContent class="gap-px">
             <div v-if="currentWorkspace && canCreatePost" class="px-2 py-2">
-                <Link :href="createPost.url()" class="block">
-                    <Button class="w-full">
-                        {{ $t('sidebar.create_post') }}
-                    </Button>
-                </Link>
+                <Button
+                    class="w-full"
+                    data-testid="sidebar-create-post"
+                    :loading="creatingPost"
+                    @click="createPost"
+                >
+                    {{ $t('sidebar.create_post') }}
+                </Button>
             </div>
 
             <NavMain v-if="currentWorkspace" :items="mainNavItems" />

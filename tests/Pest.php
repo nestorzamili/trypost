@@ -73,6 +73,63 @@ expect()->extend('toBeOne', function () {
 */
 
 /**
+ * Create a user with a workspace they belong to, set it as their current
+ * workspace, and authenticate them. The setup every workspace-scoped feature
+ * test needs before hitting an app route.
+ *
+ * @return array{0: User, 1: Workspace}
+ */
+function actingAsWorkspaceUser(): array
+{
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    test()->actingAs($user);
+
+    return [$user->refresh(), $workspace];
+}
+
+/**
+ * Create a user holding the given workspace role, alongside a separate
+ * account owner, and authenticate them. Use it wherever the ROLE is what is
+ * under test: `actingAsWorkspaceUser()` always attaches Role::Member and its
+ * user owns the account, so it can never exercise a Viewer.
+ *
+ * @return array{0: User, 1: Workspace}
+ */
+function actingAsWorkspaceUserWithRole(Role $role): array
+{
+    [$user, $workspace] = workspaceUserWithRole($role);
+
+    test()->actingAs($user);
+
+    return [$user, $workspace];
+}
+
+/**
+ * Same as `actingAsWorkspaceUserWithRole()` without authenticating, for unit
+ * -style tests that pass the user and workspace to a class directly.
+ *
+ * @return array{0: User, 1: Workspace}
+ */
+function workspaceUserWithRole(Role $role): array
+{
+    $owner = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $owner->id]);
+    $workspace->members()->attach($owner->id, ['role' => Role::Admin->value]);
+
+    $user = User::factory()->create([
+        'account_id' => $owner->account_id,
+        'current_workspace_id' => $workspace->id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => $role->value]);
+
+    return [$user->refresh(), $workspace];
+}
+
+/**
  * Issue a real Passport personal access token bound to a workspace and return
  * the plain JWT string. Use the returned token in `Authorization: Bearer ...`
  * to exercise the auth:api + workspace.token middleware stack.

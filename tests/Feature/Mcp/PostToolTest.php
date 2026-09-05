@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Post\CreatedVia;
+use App\Enums\Post\Status as PostStatus;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\UserWorkspace\Role;
 use App\Mcp\Servers\TryPostServer;
@@ -345,6 +346,21 @@ test('delete post validates post_id required', function () {
         ->tool(DeletePostTool::class, []);
 
     $response->assertHasErrors();
+});
+
+test('delete post refuses a published post like the web UI does', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::Published,
+    ]);
+
+    $response = TryPostServer::actingAs($this->user)
+        ->tool(DeletePostTool::class, ['post_id' => $post->id]);
+
+    $response->assertHasErrors(['This post has already been published and cannot be deleted.']);
+
+    expect(Post::find($post->id))->not->toBeNull();
 });
 
 test('create post persists platform meta (aspect_ratio)', function () {

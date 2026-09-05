@@ -27,6 +27,10 @@ return [
     'automations' => 'Otomasyonlar',
     'onboarding' => 'Başlarken',
     'onboarding_hint' => 'Kurulumu bitir',
+    'chat' => 'Sohbet',
+    'chat_history' => 'Geçmiş',
+    'new_chat' => 'Yeni sohbet',
+    'no_chats' => 'Henüz sohbet yok',
     'posts' => [
         'calendar' => 'Takvim',
         'all' => 'Tümü',
