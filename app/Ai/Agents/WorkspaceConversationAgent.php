@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Ai\Agents;
 
+use App\Ai\Tools\Asset\AttachExistingAssetTool;
+use App\Ai\Tools\Asset\GetAssetTool;
+use App\Ai\Tools\Asset\ListAssetsTool;
+use App\Ai\Tools\Brand\GetBrandTool;
+use App\Ai\Tools\Label\ListLabelsTool;
 use App\Ai\Tools\Post\CreatePostTool;
 use App\Ai\Tools\Post\DeletePostTool;
 use App\Ai\Tools\Post\GeneratePostTool;
@@ -14,6 +19,7 @@ use App\Ai\Tools\Post\PublishPostTool;
 use App\Ai\Tools\Post\SchedulePostTool;
 use App\Ai\Tools\Post\StartPostGenerationTool;
 use App\Ai\Tools\Post\UpdatePostTool;
+use App\Ai\Tools\Signature\ListSignaturesTool;
 use App\Models\User;
 use App\Models\Workspace;
 use Laravel\Ai\Attributes\MaxSteps;
@@ -26,9 +32,10 @@ use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Promptable;
 
 /**
- * The workspace chat agent: carries the system prompt, exposes the ten
- * post tools scoped to the workspace, and remembers conversation history
- * via the SDK's conversation store.
+ * The workspace chat agent: carries the system prompt, exposes the post
+ * tools plus the workspace read tools (brand, labels, signatures, assets)
+ * scoped to the workspace, and remembers conversation history via the SDK's
+ * conversation store.
  *
  * Deliberately does NOT define messages() — that would take precedence over
  * RemembersConversations and silently disable history loading.
@@ -76,6 +83,12 @@ class WorkspaceConversationAgent implements Agent, Conversational, HasTools
             new SchedulePostTool($this->workspace, $this->user),
             new PublishPostTool($this->workspace, $this->user),
             new DeletePostTool($this->workspace, $this->user),
+            new GetBrandTool($this->workspace, $this->user),
+            new ListLabelsTool($this->workspace, $this->user),
+            new ListSignaturesTool($this->workspace, $this->user),
+            new ListAssetsTool($this->workspace, $this->user),
+            new GetAssetTool($this->workspace, $this->user),
+            new AttachExistingAssetTool($this->workspace, $this->user),
         ];
     }
 }

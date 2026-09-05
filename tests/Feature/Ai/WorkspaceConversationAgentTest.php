@@ -9,10 +9,29 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 
-test('the agent exposes the ten post tools', function () {
+test('the agent exposes the post plus workspace tools', function () {
     $agent = new WorkspaceConversationAgent(Workspace::factory()->create(), User::factory()->create());
 
-    expect(collect($agent->tools())->count())->toBe(10)
+    $names = collect($agent->tools())->map(fn ($tool) => $tool->name())->all();
+
+    expect($names)->toBe([
+        'list_posts',
+        'get_post',
+        'get_post_metrics',
+        'start_post_generation',
+        'generate_post',
+        'create_post',
+        'update_post',
+        'schedule_post',
+        'publish_post',
+        'delete_post',
+        'get_brand',
+        'list_labels',
+        'list_signatures',
+        'list_assets',
+        'get_asset',
+        'attach_existing_asset',
+    ])
         ->and(collect($agent->tools())->first())->toBeInstanceOf(ListPostsTool::class);
 });
 

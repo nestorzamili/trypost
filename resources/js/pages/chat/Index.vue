@@ -5,7 +5,11 @@ import {
     IconChartBar,
     IconClock,
     IconFileText,
+    IconHash,
     IconLayoutSidebar,
+    IconPalette,
+    IconPhoto,
+    IconTag,
     IconX,
 } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
@@ -491,6 +495,48 @@ const onDecide = (decision: ChatApprovalDecision): void => {
                                 >
                                     <IconChartBar class="size-4" />
                                     {{ $t('chat.suggestions.metrics') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-card px-3 py-1.5 text-sm font-semibold shadow-2xs hover:bg-accent"
+                                    data-testid="chat-suggestion-brands"
+                                    dusk="chat-suggestion-brands"
+                                    @click="ask($t('chat.suggestions.brands'))"
+                                >
+                                    <IconPalette class="size-4" />
+                                    {{ $t('chat.suggestions.brands') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-card px-3 py-1.5 text-sm font-semibold shadow-2xs hover:bg-accent"
+                                    data-testid="chat-suggestion-labels"
+                                    dusk="chat-suggestion-labels"
+                                    @click="ask($t('chat.suggestions.labels'))"
+                                >
+                                    <IconTag class="size-4" />
+                                    {{ $t('chat.suggestions.labels') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-card px-3 py-1.5 text-sm font-semibold shadow-2xs hover:bg-accent"
+                                    data-testid="chat-suggestion-signatures"
+                                    dusk="chat-suggestion-signatures"
+                                    @click="
+                                        ask($t('chat.suggestions.signatures'))
+                                    "
+                                >
+                                    <IconHash class="size-4" />
+                                    {{ $t('chat.suggestions.signatures') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-full border-2 border-foreground bg-card px-3 py-1.5 text-sm font-semibold shadow-2xs hover:bg-accent"
+                                    data-testid="chat-suggestion-assets"
+                                    dusk="chat-suggestion-assets"
+                                    @click="ask($t('chat.suggestions.assets'))"
+                                >
+                                    <IconPhoto class="size-4" />
+                                    {{ $t('chat.suggestions.assets') }}
                                 </button>
                             </div>
                         </div>

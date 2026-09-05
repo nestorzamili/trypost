@@ -63,6 +63,12 @@ class ChatPostResource extends JsonResource
                     'handle' => $platform->socialAccount?->username,
                     'status' => $platform->status?->value,
                 ])->all()),
+            'labels' => $this->whenLoaded('labels', fn (): array => $this->labels
+                ->map(fn ($label): array => [
+                    'id' => $label->id,
+                    'name' => $label->name,
+                    'color' => $label->color,
+                ])->all()),
         ];
     }
 }

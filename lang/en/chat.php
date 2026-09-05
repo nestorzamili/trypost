@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 return [
     'title' => 'AI Assistant',
-    'headline' => 'How can I help with your posts?',
-    'description' => 'Ask about recent posts or how they performed — like talking to TryPost MCP, without Claude or ChatGPT.',
-    'placeholder' => 'Ask about your posts or metrics',
+    'headline' => 'How can I help with your workspace?',
+    'description' => 'Ask about posts, brands, labels, signatures or assets — like talking to TryPost MCP, without Claude or ChatGPT.',
+    'placeholder' => 'Ask about posts, brands, labels, signatures or assets',
     'send' => 'Send',
     'stop' => 'Stop',
     'retry' => 'Try again',
@@ -14,6 +14,10 @@ return [
     'suggestions' => [
         'posts' => 'Recent posts',
         'metrics' => 'Post metrics',
+        'brands' => 'My brands',
+        'labels' => 'Available labels',
+        'signatures' => 'Active signatures',
+        'assets' => 'Find assets for campaign',
     ],
     'thinking' => 'Thinking…',
     'history' => [
@@ -32,6 +36,7 @@ return [
     ],
     'tools' => [
         'post_not_found' => 'Post not found.',
+        'asset_not_found' => 'Asset not found.',
         'error' => 'Something went wrong. Please try again.',
         'publish_no_enabled_platforms' => 'This post has no enabled platforms. Enable at least one before publishing.',
         'delete_blocked' => "This post has already been published and can't be deleted from TryPost. If it's live on a platform that doesn't support automatic removal, like TikTok, remove it there manually.",
@@ -59,6 +64,12 @@ return [
         'delete_post' => 'Delete post',
         'start_post_generation' => 'Post options',
         'generate_post' => 'Generate post',
+        'get_brand' => 'Brand details',
+        'list_labels' => 'List labels',
+        'list_signatures' => 'List signatures',
+        'list_assets' => 'List assets',
+        'get_asset' => 'Asset details',
+        'attach_existing_asset' => 'Attach asset',
     ],
     'tool_card' => [
         'running' => 'Running…',
@@ -66,6 +77,9 @@ return [
         'unknown_tool' => "This assistant used a tool this interface doesn't have a card for yet.",
         'unreadable_result' => "This result couldn't be read.",
         'empty_list' => 'No posts found.',
+        'empty_labels' => 'No labels found.',
+        'empty_signatures' => 'No signatures found.',
+        'empty_assets' => 'No assets found.',
         'open_in_editor' => 'Open in editor',
         'untitled' => 'No content yet.',
         'post_deleted' => 'This post was deleted.',

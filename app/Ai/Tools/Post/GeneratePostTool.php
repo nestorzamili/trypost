@@ -49,7 +49,7 @@ class GeneratePostTool extends WorkspaceWriteTool
 
     public function description(): Stringable|string
     {
-        return 'Generate a post with AI in the current workspace, using the format, style and prompt the user chose. Call start_post_generation first to learn which formats and styles this workspace supports, and confirm those choices with the user before calling this. Generation runs in the background: this tool returns as soon as it starts, with a creation id and the channel the finished post is announced on, so never claim the post is ready — tell the user it is being generated.';
+        return 'Generate a post with AI in the current workspace, using the format, style and prompt the user chose. Generation follows the workspace brand (variant plus photo references) on its own. Call start_post_generation first to learn which formats and styles this workspace supports, and confirm those choices with the user before calling this. Generation runs in the background: this tool returns as soon as it starts, with a creation id and the channel the finished post is announced on, so never claim the post is ready — tell the user it is being generated. Pass label_ids from list_labels to tag it; add a signature or library asset afterwards with update_post / attach_existing_asset.';
     }
 
     /**
@@ -65,6 +65,7 @@ class GeneratePostTool extends WorkspaceWriteTool
             'image_count' => $schema->integer()->min(0)->max(self::MAX_IMAGE_COUNT)->description('How many images to generate. 0 for a text-only post. Defaults to 0.'),
             'date' => $schema->string()->description('Optional date the post is meant for, as Y-m-d.'),
             'apply_brand_visuals' => $schema->boolean()->description('Whether the generated images use the workspace brand palette. Defaults to true.'),
+            'label_ids' => $schema->array()->items($schema->string())->description('Optional. Label ids from list_labels to tag the generated post with.'),
         ];
     }
 
@@ -93,6 +94,12 @@ class GeneratePostTool extends WorkspaceWriteTool
             return $this->error($error);
         }
 
+        $labelIds = $this->validLabelIds($request);
+
+        if (is_string($labelIds)) {
+            return $this->error($labelIds);
+        }
+
         $creationId = $this->creationIdFor($request);
 
         StreamPostCreation::dispatch(
@@ -106,6 +113,7 @@ class GeneratePostTool extends WorkspaceWriteTool
             date: $request->filled('date') ? $request->string('date')->trim()->value() : null,
             template: $style,
             applyBrandVisuals: $request->boolean('apply_brand_visuals', true),
+            labelIds: $labelIds,
         );
 
         return $this->json([

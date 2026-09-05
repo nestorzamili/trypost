@@ -51,6 +51,7 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
         public bool $applyBrandVisuals = true,
         public array $referenceMediaIds = [],
         public bool $useBrandReferences = true,
+        public array $labelIds = [],
     ) {
         $this->onQueue('ai');
     }
@@ -241,11 +242,14 @@ class StreamPostCreation implements ShouldBeUnique, ShouldQueue
     {
         $user = User::findOrFail($this->userId);
 
+        $labelIds = $workspace->labels()->whereIn('id', $this->labelIds)->pluck('id')->all();
+
         $post = CreatePost::execute($workspace, $user, [
             'content' => $generated->content,
             'media' => $generated->media,
             'date' => $this->date,
             'created_via' => CreatedVia::Web,
+            'label_ids' => $labelIds,
         ]);
 
         if ($generated->contentType && $socialAccount) {

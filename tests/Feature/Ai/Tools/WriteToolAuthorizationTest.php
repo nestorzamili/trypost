@@ -3,6 +3,11 @@
 declare(strict_types=1);
 
 use App\Ai\Agents\WorkspaceConversationAgent;
+use App\Ai\Tools\Asset\AttachExistingAssetTool;
+use App\Ai\Tools\Asset\GetAssetTool;
+use App\Ai\Tools\Asset\ListAssetsTool;
+use App\Ai\Tools\Brand\GetBrandTool;
+use App\Ai\Tools\Label\ListLabelsTool;
 use App\Ai\Tools\Post\CreatePostTool;
 use App\Ai\Tools\Post\DeletePostTool;
 use App\Ai\Tools\Post\GeneratePostTool;
@@ -13,6 +18,7 @@ use App\Ai\Tools\Post\PublishPostTool;
 use App\Ai\Tools\Post\SchedulePostTool;
 use App\Ai\Tools\Post\StartPostGenerationTool;
 use App\Ai\Tools\Post\UpdatePostTool;
+use App\Ai\Tools\Signature\ListSignaturesTool;
 use App\Ai\Tools\WorkspaceWriteTool;
 use App\Enums\Post\Status;
 use App\Enums\SocialAccount\Platform;
@@ -22,6 +28,7 @@ use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Str;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
 
@@ -111,6 +118,18 @@ test('delete_post refuses a viewer even for a draft, which needs no approval to 
     $this->assertDatabaseHas('posts', ['id' => $draft->id]);
 });
 
+test('attach_existing_asset refuses a viewer and attaches nothing', function () {
+    [$user, $workspace] = workspaceUserWithRole(Role::Viewer);
+    $post = Post::factory()->for($workspace)->create(['status' => Status::Draft, 'media' => []]);
+
+    $output = json_decode((new AttachExistingAssetTool($workspace, $user))->handle(
+        new Request(['post_id' => $post->id, 'asset_id' => (string) Str::uuid()])
+    ), true);
+
+    expect($output)->toBe(['error' => __('chat.tools.forbidden')])
+        ->and($post->fresh()->media)->toBe([]);
+});
+
 test('generate_post refuses a viewer and dispatches no generation', function () {
     Bus::fake();
 
@@ -136,10 +155,18 @@ test('read tools stay open to a viewer', function () {
     $list = json_decode((new ListPostsTool($workspace, $user))->handle(new Request([])), true);
     $single = json_decode((new GetPostTool($workspace, $user))->handle(new Request(['post_id' => $post->id])), true);
     $metrics = json_decode((new GetPostMetricsTool($workspace, $user))->handle(new Request(['post_id' => $post->id])), true);
+    $brand = json_decode((new GetBrandTool($workspace, $user))->handle(new Request([])), true);
+    $labels = json_decode((new ListLabelsTool($workspace, $user))->handle(new Request([])), true);
+    $signatures = json_decode((new ListSignaturesTool($workspace, $user))->handle(new Request([])), true);
+    $assets = json_decode((new ListAssetsTool($workspace, $user))->handle(new Request([])), true);
 
     expect($list['data'])->toHaveCount(1)
         ->and($single['data']['id'])->toBe($post->id)
-        ->and($metrics)->toHaveKey('data');
+        ->and($metrics)->toHaveKey('data')
+        ->and($brand)->toHaveKey('data')
+        ->and($labels)->toHaveKey('data')
+        ->and($signatures)->toHaveKey('data')
+        ->and($assets)->toHaveKey('data');
 });
 
 test('a workspace admin may write', function () {
@@ -159,6 +186,11 @@ test('every mutating tool the agent exposes extends WorkspaceWriteTool', functio
         GetPostTool::class,
         GetPostMetricsTool::class,
         StartPostGenerationTool::class,
+        GetBrandTool::class,
+        ListLabelsTool::class,
+        ListSignaturesTool::class,
+        ListAssetsTool::class,
+        GetAssetTool::class,
     ];
 
     [$user, $workspace] = workspaceUserWithRole(Role::Member);
@@ -169,5 +201,5 @@ test('every mutating tool the agent exposes extends WorkspaceWriteTool', functio
         ->every(fn (Tool $tool): bool => $tool instanceof WorkspaceWriteTool);
 
     expect($gated)->toBeTrue()
-        ->and(collect($agent->tools())->count())->toBe(10);
+        ->and(collect($agent->tools())->count())->toBe(16);
 });

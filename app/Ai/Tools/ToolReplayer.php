@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Ai\Tools;
 
+use App\Ai\Tools\Asset\GetAssetTool;
+use App\Ai\Tools\Asset\ListAssetsTool;
+use App\Ai\Tools\Brand\GetBrandTool;
+use App\Ai\Tools\Label\ListLabelsTool;
 use App\Ai\Tools\Post\GetPostTool;
 use App\Ai\Tools\Post\ListPostsTool;
 use App\Ai\Tools\Post\StartPostGenerationTool;
+use App\Ai\Tools\Signature\ListSignaturesTool;
 use App\Http\Resources\Chat\ChatPostResource;
 use App\Models\Post;
 use App\Models\WorkspaceConversation;
@@ -91,6 +96,11 @@ class ToolReplayer
         'list_posts' => ListPostsTool::class,
         'get_post' => GetPostTool::class,
         'start_post_generation' => StartPostGenerationTool::class,
+        'get_brand' => GetBrandTool::class,
+        'list_labels' => ListLabelsTool::class,
+        'list_signatures' => ListSignaturesTool::class,
+        'list_assets' => ListAssetsTool::class,
+        'get_asset' => GetAssetTool::class,
     ];
 
     /**
@@ -113,6 +123,7 @@ class ToolReplayer
         'publish_post',
         'schedule_post',
         'update_post',
+        'attach_existing_asset',
     ];
 
     /**

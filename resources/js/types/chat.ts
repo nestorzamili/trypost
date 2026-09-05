@@ -21,7 +21,71 @@ export interface ChatPost {
     scheduled_at?: string | null;
     published_at?: string | null;
     platforms?: ChatPostPlatform[];
+    labels?: ChatLabel[];
     deleted?: boolean;
+}
+
+/** Mirrors one row of `App\Ai\Tools\Label\ListLabelsTool`'s payload. */
+export interface ChatLabel {
+    id: string;
+    name: string;
+    color: string;
+}
+
+/** Mirrors one row of `App\Ai\Tools\Signature\ListSignaturesTool`'s payload. */
+export interface ChatSignature {
+    id: string;
+    name: string;
+    content: string;
+}
+
+/** Mirrors one row of `App\Ai\Tools\Asset\ListAssetsTool`'s payload. */
+export interface ChatAsset {
+    id: string;
+    original_filename: string;
+    type: string;
+    mime_type: string;
+    size: number;
+    url: string;
+    meta?: Record<string, unknown> | null;
+}
+
+/** Mirrors `App\Ai\Tools\Brand\GetBrandTool`'s payload. */
+export interface ChatBrandVariant {
+    id: string;
+    label: string;
+    language_code: string;
+    brand_color: string | null;
+    background_color: string | null;
+    text_color: string | null;
+    headline_font: string | null;
+    body_font: string | null;
+    colors: Record<string, string>;
+    visual_notes: string | null;
+}
+
+/** Mirrors one reference photo of `App\Ai\Tools\Brand\GetBrandTool`'s payload. */
+export interface ChatBrandReference {
+    id: string;
+    original_filename: string;
+    label: string | null;
+    mime_type: string;
+    url: string;
+}
+
+/** Mirrors `App\Ai\Tools\Brand\GetBrandTool`'s payload. */
+export interface ChatBrand {
+    name: string;
+    brand_description: string | null;
+    brand_voice_traits: string[];
+    brand_guidelines: string | null;
+    brand_color: string | null;
+    background_color: string | null;
+    text_color: string | null;
+    brand_font: string | null;
+    content_language: string | null;
+    variants: ChatBrandVariant[];
+    reference_photos: ChatBrandReference[];
 }
 
 /** One row of `App\Services\Post\PostMetricsFetcher::forPlatform()`'s array shape. */

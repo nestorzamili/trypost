@@ -120,4 +120,53 @@ abstract class WorkspaceTool implements Tool
 
         return $this->workspace->posts()->with(['postPlatforms.socialAccount'])->find($postId);
     }
+
+    /**
+     * Validate the model-supplied `label_ids` against this workspace.
+     *
+     * Returns the clean list of ids, or an error string the caller should
+     * return as-is. Unknown ids (other workspaces, soft-deleted, malformed)
+     * are refused rather than silently dropped: dropping them would let the
+     * model believe a tag was applied that never was.
+     *
+     * @return array<int, string>|string
+     */
+    protected function validLabelIds(Request $request): array|string
+    {
+        $ids = data_get($request->toArray(), 'label_ids', []);
+
+        if ($ids === null) {
+            return [];
+        }
+
+        if (! is_array($ids)) {
+            return 'The label_ids argument must be a list of label ids from list_labels.';
+        }
+
+        $ids = array_values(array_unique(array_filter(
+            $ids,
+            fn (mixed $id): bool => is_string($id) && $id !== '',
+        )));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $known = $this->workspace->labels()->whereIn('id', $ids)->pluck('id')->all();
+        $unknown = array_values(array_diff($ids, $known));
+
+        if ($unknown !== []) {
+            $options = $this->workspace->labels()->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($label): string => "{$label->id} ({$label->name})")
+                ->all();
+
+            if ($options === []) {
+                return 'This workspace has no labels yet, so no label_ids can be applied. Call list_labels to confirm, then retry without label_ids.';
+            }
+
+            return 'Unknown label id(s): '.implode(', ', $unknown).'. Use one of these label ids from list_labels instead: '.implode(', ', $options).'.';
+        }
+
+        return $ids;
+    }
 }
