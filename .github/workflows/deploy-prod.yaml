@@ -12,10 +12,18 @@ on:
           - build-and-deploy
           - build-only
       public_host:
-        description: 'Override public hostname for this run (bare host, e.g. post.example.com). Empty = use the TRYPOST_PUBLIC_HOST repository variable.'
+        description: 'Optional host override (e.g. post.example.com). Empty = use variable.'
         type: string
         required: false
         default: ''
+      platform:
+        description: 'Target image platform'
+        type: choice
+        required: true
+        default: linux/amd64
+        options:
+          - linux/amd64
+          - linux/arm64
 
 permissions:
   contents: read
@@ -28,16 +36,15 @@ concurrency:
 jobs:
   build:
     name: Build and push image
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     timeout-minutes: 20
     outputs:
       image: ${{ steps.image.outputs.image }}
-      digest: ${{ steps.build.outputs.digest }}
       compose_artifact: ${{ steps.image.outputs.compose_artifact }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set image reference
         id: image
@@ -47,7 +54,6 @@ jobs:
           set -eu
           SHORT_SHA="${GITHUB_SHA::7}"
           REGISTRY_IMAGE="${REGISTRY_IMAGE,,}"
-          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "image=$REGISTRY_IMAGE:$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "compose_artifact=trypost-compose-$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
@@ -88,25 +94,27 @@ jobs:
           echo "host=$host" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and push production image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
           target: production
-          platforms: linux/amd64
+          platforms: ${{ inputs.platform }}
           push: true
           tags: ${{ steps.image.outputs.image }}
+          cache-from: type=gha,scope=prod-${{ inputs.platform }}
+          cache-to: type=gha,mode=max,scope=prod-${{ inputs.platform }}
           build-args: |
             VITE_APP_NAME=TryPost
             VITE_REVERB_APP_KEY=trypost-reverb-key
@@ -115,7 +123,7 @@ jobs:
             VITE_REVERB_SCHEME=https
 
       - name: Upload deployment manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.image.outputs.compose_artifact }}
           path: compose.prod.yaml
@@ -128,6 +136,7 @@ jobs:
           IMAGE: ${{ steps.image.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
           PUBLIC_HOST: ${{ steps.public-host.outputs.host }}
+          PLATFORM: ${{ inputs.platform }}
         run: |
           set -eu
           {
@@ -136,6 +145,7 @@ jobs:
             echo "- Mode: \`$MODE\`"
             echo "- Image: \`$IMAGE\`"
             echo "- Image digest: \`$DIGEST\`"
+            echo "- Platform: \`$PLATFORM\`"
             echo "- Public host: \`$PUBLIC_HOST\`"
             echo ""
             if [ "$MODE" = "build-only" ]; then
@@ -163,91 +173,39 @@ jobs:
 
     steps:
       - name: Download deployment manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ needs.build.outputs.compose_artifact }}
           path: deployment
 
-      - name: Parse SSH configuration
-        id: ssh-config
-        env:
-          SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
-        run: |
-          set -eu
-
-          user="${SSH_CONFIG%@*}"
-          endpoint="${SSH_CONFIG#*@}"
-
-          if [ "$user" = "$SSH_CONFIG" ] || [ -z "$user" ]; then
-            echo "SSH_CONFIG must use the format user@host:port" >&2
-            exit 1
-          fi
-
-          case "$endpoint" in
-            \[*\]:*)
-              host="${endpoint%%]*}"
-              host="${host#\[}"
-              port="${endpoint##*]:}"
-              ;;
-            *:*)
-              host="${endpoint%:*}"
-              port="${endpoint##*:}"
-              ;;
-            *)
-              echo "SSH_CONFIG must include a port" >&2
-              exit 1
-              ;;
-          esac
-
-          case "$port" in
-            ''|*[!0-9]*)
-              echo "SSH_CONFIG port must be numeric" >&2
-              exit 1
-              ;;
-          esac
-
-          [ -n "$host" ] || {
-            echo "SSH_CONFIG host is required" >&2
-            exit 1
-          }
-
-          {
-            echo "user=$user"
-            echo "host=$host"
-            echo "port=$port"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Copy deployment manifest to VM
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1
         with:
-          host: ${{ steps.ssh-config.outputs.host }}
-          username: ${{ steps.ssh-config.outputs.user }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ steps.ssh-config.outputs.port }}
+          port: ${{ secrets.SSH_PORT }}
           source: deployment/compose.prod.yaml
           target: /opt/trypost
           overwrite: true
           strip_components: 1
 
       - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.2.2
+        uses: appleboy/ssh-action@v1
         env:
           TRYPOST_IMAGE: ${{ needs.build.outputs.image }}
           GHCR_USERNAME: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          host: ${{ steps.ssh-config.outputs.host }}
-          username: ${{ steps.ssh-config.outputs.user }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ steps.ssh-config.outputs.port }}
+          port: ${{ secrets.SSH_PORT }}
           envs: TRYPOST_IMAGE,GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -eu
 
             cd /opt/trypost
-
-            # Remove the staging directory used by the failed pre-artifact deploy.
-            rm -rf deployment
 
             test -f compose.prod.yaml || {
               echo "compose.prod.yaml is required at /opt/trypost/compose.prod.yaml" >&2
@@ -267,30 +225,14 @@ jobs:
               fi
             }
 
-            require_env APP_NAME
-            require_env APP_ENV
-            require_env APP_KEY
-            require_env APP_URL
-            require_env DB_CONNECTION
-            require_env DB_HOST
-            require_env DB_PORT
-            require_env DB_DATABASE
-            require_env DB_USERNAME
-            require_env DB_PASSWORD
-            require_env REDIS_HOST
-            require_env REDIS_PORT
-            require_env QUEUE_CONNECTION
-            require_env CACHE_STORE
-            require_env SESSION_DRIVER
-            require_env BROADCAST_CONNECTION
-            require_env REVERB_APP_ID
-            require_env REVERB_APP_KEY
-            require_env REVERB_APP_SECRET
-            require_env REVERB_HOST
-            require_env REVERB_PORT
-            require_env REVERB_SCHEME
-            require_env PASSPORT_PRIVATE_KEY
-            require_env PASSPORT_PUBLIC_KEY
+            for key in APP_NAME APP_ENV APP_KEY APP_URL \
+              DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD \
+              REDIS_HOST REDIS_PORT QUEUE_CONNECTION CACHE_STORE SESSION_DRIVER \
+              BROADCAST_CONNECTION REVERB_APP_ID REVERB_APP_KEY REVERB_APP_SECRET \
+              REVERB_HOST REVERB_PORT REVERB_SCHEME \
+              PASSPORT_PRIVATE_KEY PASSPORT_PUBLIC_KEY; do
+              require_env "$key"
+            done
 
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
               --username "$GHCR_USERNAME" \

@@ -18,7 +18,8 @@ Two inputs are offered when starting the workflow:
 | Input | Type | Description |
 |---|---|---|
 | `mode` | `build-and-deploy` (default) or `build-only` | `build-only` builds and pushes the image without touching the VM |
-| `public_host` | Optional string | Override the public hostname for this run only, for example `post.example.com`. Empty means the `TRYPOST_PUBLIC_HOST` repository variable is used, so the variable never has to be edited just to target another host |
+| `public_host` | Optional string | Host override for this run only. Empty means the `TRYPOST_PUBLIC_HOST` repository variable is used |
+| `platform` | `linux/amd64` (default) or `linux/arm64` | Target image platform. Match this to the VM architecture (`uname -m`: `x86_64` → amd64, `aarch64` → arm64). The build job automatically picks a native runner per platform (`ubuntu-24.04-arm` for arm64) so there is no QEMU emulation slowdown, and BuildKit layer caching (`type=gha`) speeds up repeat builds |
 
 The resolved host must be a bare hostname (no protocol, path, or port) and is
 validated before the build starts. The run summary shows the mode, image tag
@@ -44,12 +45,11 @@ Only the deploy job uses this environment.
 
 | Name | Required | Description |
 |---|---:|---|
-| `SSH_CONFIG` | Yes | SSH endpoint in the format `user@host:port`, for example `dck@srv1900584:22` |
+| `SSH_HOST` | Yes | VM hostname or IP, for example `srv1900584` |
+| `SSH_USER` | Yes | SSH user for deployment, for example `dck` |
+| `SSH_PORT` | Yes | SSH port, for example `22` |
 | `SSH_PRIVATE_KEY` | Yes | Private key for the VM SSH user |
 | `GITHUB_TOKEN` | Automatic | GitHub-provided token used to push and pull the GHCR image; no manual setup required |
-
-`SSH_CONFIG` contains only the endpoint. Keep the private key in
-`SSH_PRIVATE_KEY`; do not combine them.
 
 ### Variables
 
