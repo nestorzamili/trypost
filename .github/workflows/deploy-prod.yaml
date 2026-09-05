@@ -2,6 +2,20 @@ name: TryPost Production Pipeline
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Pipeline mode'
+        type: choice
+        required: true
+        default: build-and-deploy
+        options:
+          - build-and-deploy
+          - build-only
+      public_host:
+        description: 'Override public hostname for this run (bare host, e.g. post.example.com). Empty = use the TRYPOST_PUBLIC_HOST repository variable.'
+        type: string
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -15,10 +29,10 @@ jobs:
   build:
     name: Build and push image
     runs-on: ubuntu-latest
-    environment: production
     timeout-minutes: 20
     outputs:
       image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
       compose_artifact: ${{ steps.image.outputs.compose_artifact }}
 
     steps:
@@ -37,15 +51,41 @@ jobs:
           echo "image=$REGISTRY_IMAGE:$SHORT_SHA" >> "$GITHUB_OUTPUT"
           echo "compose_artifact=trypost-compose-$SHORT_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Validate public Reverb host
+      - name: Resolve public host
+        id: public-host
         env:
-          TRYPOST_PUBLIC_HOST: ${{ vars.TRYPOST_PUBLIC_HOST }}
+          INPUT_HOST: ${{ inputs.public_host }}
+          STORED_HOST: ${{ vars.TRYPOST_PUBLIC_HOST }}
         run: |
           set -eu
-          test -n "$TRYPOST_PUBLIC_HOST" || {
-            echo "Repository variable TRYPOST_PUBLIC_HOST is required" >&2
+
+          # Per-run input wins; the repository variable is the fallback so the
+          # variable never has to be edited just to target another host.
+          host="${INPUT_HOST:-$STORED_HOST}"
+          host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
+
+          test -n "$host" || {
+            echo "Public host is required: pass the public_host input or set the TRYPOST_PUBLIC_HOST repository variable" >&2
             exit 1
           }
+
+          # Fail fast on values that would only break at runtime in the
+          # browser: VITE_REVERB_HOST must be a bare hostname.
+          case "$host" in
+            *://*|*/*|*:*)
+              echo "Public host must be a bare hostname without protocol, path or port (got '$host')" >&2
+              exit 1
+              ;;
+          esac
+
+          case "$host" in
+            -*|.-*|*.|*-|*[!a-z0-9.-]*)
+              echo "Public host contains invalid characters (got '$host')" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "host=$host" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -58,6 +98,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push production image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -69,7 +110,7 @@ jobs:
           build-args: |
             VITE_APP_NAME=TryPost
             VITE_REVERB_APP_KEY=trypost-reverb-key
-            VITE_REVERB_HOST=${{ vars.TRYPOST_PUBLIC_HOST }}
+            VITE_REVERB_HOST=${{ steps.public-host.outputs.host }}
             VITE_REVERB_PORT=443
             VITE_REVERB_SCHEME=https
 
@@ -81,9 +122,38 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Summarize run
+        env:
+          MODE: ${{ inputs.mode }}
+          IMAGE: ${{ steps.image.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          PUBLIC_HOST: ${{ steps.public-host.outputs.host }}
+        run: |
+          set -eu
+          {
+            echo "## TryPost production run"
+            echo ""
+            echo "- Mode: \`$MODE\`"
+            echo "- Image: \`$IMAGE\`"
+            echo "- Image digest: \`$DIGEST\`"
+            echo "- Public host: \`$PUBLIC_HOST\`"
+            echo ""
+            if [ "$MODE" = "build-only" ]; then
+              echo "Build only — nothing was deployed. To deploy this image manually:"
+              echo ""
+              echo "\`\`\`bash"
+              echo "TRYPOST_IMAGE=$IMAGE \\"
+              echo "  docker compose --env-file .env -p trypost -f compose.prod.yaml up -d"
+              echo "\`\`\`"
+            else
+              echo "Deploy step follows in the \`Deploy to VM\` job below."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     name: Deploy to VM
     needs: build
+    if: ${{ inputs.mode == 'build-and-deploy' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 15

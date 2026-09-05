@@ -1,20 +1,46 @@
 # TryPost Production Deployment
 
-Production deployment is triggered by pushes to the `samunu` branch. The
-workflow builds an image, tags it with the first seven characters of the commit
-SHA, pushes it to GHCR, and deploys that image to the VM through SSH.
+Production runs are started manually from the Actions tab via **Run workflow**
+on the `TryPost Production Pipeline` workflow. The workflow builds an image,
+tags it with the first seven characters of the commit SHA, pushes it to GHCR,
+and — unless started in build-only mode — deploys that image to the VM
+through SSH.
 
 TryPost uses its own PostgreSQL and Redis containers. Existing containers such
 as `scsme-db`, `scsme-redis`, and `redis-shared` are not used or modified.
 The existing host Nginx proxies application traffic to `127.0.0.1:8000` and
 Reverb traffic to `127.0.0.1:8080`.
 
+## Starting a run
+
+Two inputs are offered when starting the workflow:
+
+| Input | Type | Description |
+|---|---|---|
+| `mode` | `build-and-deploy` (default) or `build-only` | `build-only` builds and pushes the image without touching the VM |
+| `public_host` | Optional string | Override the public hostname for this run only, for example `post.example.com`. Empty means the `TRYPOST_PUBLIC_HOST` repository variable is used, so the variable never has to be edited just to target another host |
+
+The resolved host must be a bare hostname (no protocol, path, or port) and is
+validated before the build starts. The run summary shows the mode, image tag
+and digest, and resolved host. In `build-only` mode the summary also shows
+the manual `docker compose` command to deploy the built image later.
+
+Note that the host input only affects the **build-time** `VITE_REVERB_HOST`
+baked into the image. Pointing a new domain at the stack still requires the
+manual server steps below (VM `.env`, Nginx, DNS, certificate).
+
+When changing the workflow itself, validate in this order: first a
+`build-only` run without input (uses the stored variable), then a
+`build-only` run with a `public_host` override (check the summary shows the
+override), and only then a regular `build-and-deploy` run to confirm no
+regression.
+
 ## GitHub Actions configuration
 
-Create the following secrets and variable under the GitHub Environment named
-`production`. Both workflow jobs use this environment.
-
 ### Secrets
+
+Create the following secrets under the GitHub Environment named `production`.
+Only the deploy job uses this environment.
 
 | Name | Required | Description |
 |---|---:|---|
@@ -27,10 +53,19 @@ Create the following secrets and variable under the GitHub Environment named
 
 ### Variables
 
+Create the following variable under the repository's **Actions variables**
+(Settings → Secrets and variables → Actions → Variables tab), not under the
+environment. It is a public hostname, not a secret, and the build job reads
+it without the production environment so build-only runs stay frictionless.
+
 | Name | Required | Description |
 |---|---:|---|
-| `TRYPOST_PUBLIC_HOST` | Yes | Environment variable containing the public hostname without protocol or path, for example `post.example.com` |
+| `TRYPOST_PUBLIC_HOST` | Yes, unless `public_host` is passed | Repository variable containing the public hostname without protocol or path, for example `post.example.com` |
 | Other variables | No | No optional GitHub variables are currently used |
+
+> One-time move: if `TRYPOST_PUBLIC_HOST` still lives under the `production`
+> environment variables, recreate it as a repository variable with the same
+> value and delete the environment copy.
 
 ### Build arguments
 
@@ -38,7 +73,7 @@ Create the following secrets and variable under the GitHub Environment named
 |---|---|---:|
 | `VITE_APP_NAME` | `TryPost` | No |
 | `VITE_REVERB_APP_KEY` | `trypost-reverb-key` | No |
-| `VITE_REVERB_HOST` | `${TRYPOST_PUBLIC_HOST}` | No |
+| `VITE_REVERB_HOST` | Resolved host (`public_host` input, else `${TRYPOST_PUBLIC_HOST}`) | No |
 | `VITE_REVERB_PORT` | `443` | No |
 | `VITE_REVERB_SCHEME` | `https` | No |
 
