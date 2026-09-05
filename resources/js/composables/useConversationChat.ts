@@ -3,7 +3,6 @@ import {
     DefaultChatTransport,
     isTextUIPart,
     isToolUIPart,
-    lastAssistantMessageIsCompleteWithApprovalResponses,
     type ChatOnErrorCallback,
     type ChatOnFinishCallback,
     type UIMessage,
@@ -84,15 +83,36 @@ const latestMessageText = (messages: UIMessage[]): string => {
 };
 
 /**
+ * Tool part states that end a step's need to wait: the call produced output,
+ * was denied, or carries an approval decision ready to be submitted. Mirrors
+ * the SDK's own auto-send guard, so a resume fires only once every approval
+ * in the current step has been answered.
+ */
+const SETTLED_TOOL_STATES = [
+    'output-available',
+    'output-error',
+    'output-denied',
+    'approval-responded',
+];
+
+/**
  * Build the `decisions` payload from the newest message's current step, if
  * that message is the assistant's own paused turn rather than a fresh user
  * prompt. Restricted to parts after the last `step-start` marker — the same
- * scope `lastAssistantMessageIsCompleteWithApprovalResponses` uses to decide
- * whether to auto-resend — so a decision already resolved in an earlier step
- * of the same message is never resubmitted.
+ * scope the SDK's auto-send helper uses — so a decision already resolved in
+ * an earlier step of the same message is never resubmitted.
+ *
+ * Decisions the client has already sent (`submitted`) are skipped: an
+ * `approval-responded` part is terminal history — the approval continuation
+ * runs inside the same step, so no new `step-start` ever arrives to move it
+ * out of scope. Without this, every state change after an approval turn
+ * (including the automatic check that runs when the turn's own stream ends)
+ * would resubmit the same decisions, and the server would answer each replay
+ * with an approval-mismatch failure while pointlessly reclaiming the turn.
  */
 const pendingDecisions = (
     messages: UIMessage[],
+    submitted: ReadonlySet<string>,
 ): Record<string, ChatDecision> | null => {
     const last = messages[messages.length - 1];
 
@@ -106,14 +126,33 @@ const pendingDecisions = (
         -1,
     );
 
+    const stepTools = last.parts
+        .slice(lastStepStartIndex + 1)
+        .filter(isToolUIPart);
+
+    if (
+        stepTools.length === 0 ||
+        !stepTools.every((part) => SETTLED_TOOL_STATES.includes(part.state))
+    ) {
+        return null;
+    }
+
     const decisions: Record<string, ChatDecision> = {};
 
-    for (const part of last.parts.slice(lastStepStartIndex + 1)) {
-        if (isToolUIPart(part) && part.state === 'approval-responded') {
-            decisions[part.approval.id] = part.approval.approved
-                ? { action: 'approve' }
-                : { action: 'reject', result: part.approval.reason };
+    for (const part of stepTools) {
+        if (part.state !== 'approval-responded') {
+            continue;
         }
+
+        const id = part.approval?.id;
+
+        if (typeof id !== 'string' || id === '' || submitted.has(id)) {
+            continue;
+        }
+
+        decisions[id] = part.approval.approved
+            ? { action: 'approve' }
+            : { action: 'reject', result: part.approval.reason };
     }
 
     return Object.keys(decisions).length > 0 ? decisions : null;
@@ -125,11 +164,18 @@ const pendingDecisions = (
  * (402 out of AI credits — show a billing CTA; 409 a turn is already
  * streaming — recoverable by waiting; 403/404 someone else's or a deleted
  * conversation) without parsing the message text, which is locale-dependent.
+ *
+ * `code` carries the machine-readable `code` the backend attaches to failures
+ * that need programmatic healing rather than an error banner — currently only
+ * `decisions_resolved`, when a resume replays approvals the server already
+ * settled. Absent on every other failure, including validation 422s, which
+ * carry `errors` instead.
  */
 export class ChatRequestError extends Error {
     constructor(
         message: string,
         public readonly status: number,
+        public readonly code: string | null = null,
     ) {
         super(message);
         this.name = 'ChatRequestError';
@@ -140,30 +186,38 @@ export class ChatRequestError extends Error {
  * Read a translated `message` out of a non-2xx JSON error body — the shape
  * every abort()/gate response on this route uses (402 out of AI credits, 403
  * someone else's conversation, 404 deleted, 409 turn already in progress) —
- * instead of surfacing the raw response body as the error text.
+ * instead of surfacing the raw response body as the error text. Also lifts
+ * the optional machine-readable `code` for healable failures.
  */
-const parseErrorMessage = async (response: Response): Promise<string> => {
+const parseError = async (
+    response: Response,
+): Promise<{ message: string; code: string | null }> => {
     const body: unknown = await response.json().catch(() => null);
 
     if (body !== null && typeof body === 'object' && 'message' in body) {
-        const { message } = body as { message: unknown };
+        const { message, code } = body as {
+            message: unknown;
+            code?: unknown;
+        };
 
         if (typeof message === 'string' && message !== '') {
-            return message;
+            return {
+                message,
+                code: typeof code === 'string' && code !== '' ? code : null,
+            };
         }
     }
 
-    return trans('chat.errors.request_failed');
+    return { message: trans('chat.errors.request_failed'), code: null };
 };
 
 const fetchWithReadableErrors: typeof fetch = async (input, init) => {
     const response = await fetch(input, init);
 
     if (!response.ok) {
-        throw new ChatRequestError(
-            await parseErrorMessage(response),
-            response.status,
-        );
+        const { message, code } = await parseError(response);
+
+        throw new ChatRequestError(message, response.status, code);
     }
 
     return response;
@@ -185,6 +239,8 @@ const fetchWithReadableErrors: typeof fetch = async (input, init) => {
  * Optional `onFinish`/`onError` callbacks are forwarded to `useChat`.
  * `cancelTurn` releases the server-side turn claim (`POST .../cancel`) for
  * use after `stop()` and on failures the server never cleans up itself.
+ * `absorbResolvedDecisions` marks the tail's answered approvals as submitted
+ * without sending anything, for healing a `decisions_resolved` rejection.
  */
 export const useConversationChat = (
     conversationId: string,
@@ -194,18 +250,32 @@ export const useConversationChat = (
         onError?: ChatOnErrorCallback;
     } = {},
 ) => {
+    /**
+     * Approval ids already carried to the server. An `approval-responded`
+     * part never leaves the tail's last step — the approval continuation
+     * streams into the same step — so without this record every later send
+     * (including the SDK's own post-turn auto-send check) would replay the
+     * same decisions and the server would reject each replay.
+     */
+    const submittedDecisionIds = new Set<string>();
+
     const transport = new DefaultChatTransport<UIMessage>({
         api: store.url({ conversation: conversationId }),
         credentials: 'same-origin',
         fetch: fetchWithReadableErrors,
         prepareSendMessagesRequest: ({ messages }) => {
-            const decisions = pendingDecisions(messages);
+            const decisions = pendingDecisions(messages, submittedDecisionIds);
+
+            if (decisions !== null) {
+                for (const id of Object.keys(decisions)) {
+                    submittedDecisionIds.add(id);
+                }
+
+                return { body: { decisions }, headers: requestHeaders() };
+            }
 
             return {
-                body:
-                    decisions !== null
-                        ? { decisions }
-                        : { message: latestMessageText(messages) },
+                body: { message: latestMessageText(messages) },
                 headers: requestHeaders(),
             };
         },
@@ -214,8 +284,12 @@ export const useConversationChat = (
     const chat = useChat({
         transport,
         messages: initialMessages,
-        sendAutomaticallyWhen:
-            lastAssistantMessageIsCompleteWithApprovalResponses,
+        // The SDK's own helper cannot tell a freshly answered approval from
+        // one submitted turns ago — both read `approval-responded` — so it
+        // would auto-resend settled decisions after every approval turn. This
+        // predicate only fires while an answer is still unsent.
+        sendAutomaticallyWhen: ({ messages }) =>
+            pendingDecisions(messages, submittedDecisionIds) !== null,
         onFinish: callbacks.onFinish,
         onError: callbacks.onError,
     });
@@ -241,6 +315,31 @@ export const useConversationChat = (
     };
 
     /**
+     * Mark the tail's answered approvals as submitted without sending
+     * anything. For healing a `decisions_resolved` rejection: the server
+     * reports those approvals already settled, so resending them would only
+     * fail again — recording them stops the auto-send check from retrying,
+     * and the caller clears the error banner since nothing was actually lost.
+     */
+    const absorbResolvedDecisions = (): void => {
+        const last = chat.messages.value[chat.messages.value.length - 1];
+
+        if (last === undefined || last.role !== 'assistant') {
+            return;
+        }
+
+        for (const part of last.parts) {
+            if (isToolUIPart(part) && part.state === 'approval-responded') {
+                const id = part.approval?.id;
+
+                if (typeof id === 'string' && id !== '') {
+                    submittedDecisionIds.add(id);
+                }
+            }
+        }
+    };
+
+    /**
      * Release the server-side turn claim for this conversation. The claim
      * only clears itself on a clean stream end, so call this after `stop()`
      * and best-effort on non-409 failures — otherwise the conversation stays
@@ -259,5 +358,5 @@ export const useConversationChat = (
         }
     };
 
-    return { ...chat, submitDecisions, cancelTurn };
+    return { ...chat, submitDecisions, absorbResolvedDecisions, cancelTurn };
 };

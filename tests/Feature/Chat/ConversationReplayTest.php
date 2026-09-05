@@ -17,6 +17,7 @@ use App\Models\WorkspaceConversationMessage;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 test('reopening re-executes a read tool with fresh data', function () {
     $workspace = Workspace::factory()->create();
@@ -673,4 +674,48 @@ test('a turn stored before the parts column still exposes null parts', function 
     expect($message)->toHaveKey('parts')
         ->and(data_get($message, 'parts'))->toBeNull()
         ->and(data_get($message, 'tool_calls.0.id'))->toBe('call_legacy');
+});
+
+test('reopening refreshes a publish snapshot that finished after dispatch', function () {
+    $workspace = Workspace::factory()->create();
+    $user = User::factory()->create();
+    $conversation = WorkspaceConversation::factory()->for($workspace)->for($user)->create();
+    $post = Post::factory()->for($workspace)->create(['status' => Status::Published, 'content' => 'Live now']);
+
+    $stored = json_encode(['data' => ['id' => $post->id, 'status' => 'publishing', 'content' => 'Stale']]);
+
+    WorkspaceConversationMessage::factory()->for($conversation, 'conversation')->create([
+        'role' => Role::Assistant,
+        'content' => 'Publishing.',
+        'tool_calls' => [['id' => 'call_9', 'name' => 'publish_post', 'arguments' => ['post_id' => $post->id]]],
+        'tool_results' => [['id' => 'call_9', 'result' => $stored]],
+    ]);
+
+    $payloads = app(ToolReplayer::class)->replay($conversation);
+
+    $data = json_decode($payloads['call_9'], true)['data'];
+
+    expect($payloads['call_9'])->not->toBe($stored)
+        ->and($data['id'])->toBe($post->id)
+        ->and($data['status'])->toBe(Status::Published->value)
+        ->and($data['content'])->toBe('Live now');
+});
+
+test('reopening marks a publish snapshot deleted when its post is gone', function () {
+    $workspace = Workspace::factory()->create();
+    $user = User::factory()->create();
+    $conversation = WorkspaceConversation::factory()->for($workspace)->for($user)->create();
+
+    $stored = json_encode(['data' => ['id' => (string) Str::uuid(), 'status' => 'publishing']]);
+
+    WorkspaceConversationMessage::factory()->for($conversation, 'conversation')->create([
+        'role' => Role::Assistant,
+        'content' => 'Publishing.',
+        'tool_calls' => [['id' => 'call_10', 'name' => 'publish_post', 'arguments' => ['post_id' => 'gone']]],
+        'tool_results' => [['id' => 'call_10', 'result' => $stored]],
+    ]);
+
+    $payloads = app(ToolReplayer::class)->replay($conversation);
+
+    expect(data_get(json_decode($payloads['call_10'], true), 'data.deleted'))->toBeTrue();
 });

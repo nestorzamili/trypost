@@ -31,12 +31,19 @@ class PostPlatformStatusUpdated implements ShouldBroadcast
     }
 
     /**
-     * @return array<string, string>
+     * The chat thread patches its frozen post cards live off this event (see
+     * `patchPostStatus` in resources/js/lib/chat/postStatus.ts), so the
+     * payload carries the post-level fields a card renders — not just the id.
+     * Existing listeners reload on the event name and ignore the extra keys.
+     *
+     * @return array<string, string|null>
      */
     public function broadcastWith(): array
     {
         return [
             'post_id' => $this->postPlatform->post_id,
+            'status' => $this->postPlatform->post->status->value,
+            'published_at' => $this->postPlatform->post->published_at?->toIso8601String(),
         ];
     }
 

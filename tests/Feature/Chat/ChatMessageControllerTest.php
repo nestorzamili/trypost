@@ -353,6 +353,48 @@ test('it throttles the streaming route so one account cannot hold a worker per c
         ->assertStatus(Response::HTTP_TOO_MANY_REQUESTS);
 });
 
+test('it answers replayed approvals with 422 instead of claiming the turn', function () {
+    [$user, $workspace] = actingAsWorkspaceUser();
+    $conversation = WorkspaceConversation::factory()->for($workspace)->for($user)->create();
+
+    WorkspaceConversationMessage::factory()->for($conversation, 'conversation')->create([
+        'role' => Role::Assistant,
+        'content' => 'Published.',
+        'tool_calls' => [['id' => 'call_1', 'name' => 'publish_post', 'arguments' => ['post_id' => 'x']]],
+        'tool_results' => [['id' => 'call_1', 'name' => 'publish_post', 'arguments' => ['post_id' => 'x'], 'result' => '{"data":{"id":"x"}}']],
+    ]);
+
+    $this->postJson(route('app.chat.messages.store', $conversation->id), [
+        'decisions' => ['call_1' => ['action' => 'approve']],
+    ])->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
+        ->assertJson(['code' => 'decisions_resolved']);
+
+    expect($conversation->fresh()->status)->toBe(Status::Idle)
+        ->and($conversation->messages()->where('role', Role::User)->count())->toBe(0);
+});
+
+test('it streams a resume that still has a pending approval', function () {
+    WorkspaceConversationAgent::fake(['All done.']);
+
+    [$user, $workspace] = actingAsWorkspaceUser();
+    $conversation = WorkspaceConversation::factory()->for($workspace)->for($user)->create();
+
+    WorkspaceConversationMessage::factory()->for($conversation, 'conversation')->create([
+        'role' => Role::Assistant,
+        'content' => 'Published.',
+        'tool_calls' => [['id' => 'call_1', 'name' => 'publish_post', 'arguments' => ['post_id' => 'x']]],
+        'tool_results' => [['id' => 'call_1', 'name' => 'publish_post', 'arguments' => ['post_id' => 'x'], 'result' => '{"data":{"id":"x"}}']],
+    ]);
+
+    $response = $this->post(route('app.chat.messages.store', $conversation->id), [
+        'decisions' => ['call_2' => ['action' => 'approve']],
+    ]);
+    $response->assertOk();
+    $response->streamedContent();
+
+    expect($conversation->fresh()->status)->toBe(Status::Idle);
+});
+
 test('cancel releases an in-progress turn so the conversation accepts messages again', function () {
     [$user, $workspace] = actingAsWorkspaceUser();
     $conversation = WorkspaceConversation::factory()

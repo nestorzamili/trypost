@@ -21,6 +21,10 @@ import {
     useConversationChat,
 } from '@/composables/useConversationChat';
 import AppLayout from '@/layouts/AppLayout.vue';
+import {
+    patchPostStatus,
+    type PostPlatformStatusPayload,
+} from '@/lib/chat/postStatus';
 import { buildInitialMessages } from '@/lib/chat/seedMessages';
 import { chat } from '@/routes/app';
 import { index as billingIndex } from '@/routes/app/billing';
@@ -51,6 +55,7 @@ const {
     stop,
     regenerate,
     submitDecisions,
+    absorbResolvedDecisions,
     cancelTurn,
     clearError,
 } = useConversationChat(
@@ -76,11 +81,28 @@ const {
         // non-409 failure means no other turn is actually running, making
         // the release safe; on a 409 another turn owns the claim and must
         // keep it.
+        //
+        // A `decisions_resolved` rejection is not a failure at all: the
+        // server reports the replayed approvals already settled, which is
+        // exactly what the client wanted to hear. The settled ids are
+        // absorbed so nothing resends them, and the banner is cleared
+        // without ever showing — there is nothing for the user to retry.
         onError: (chatError: Error) => {
+            if (!(chatError instanceof ChatRequestError)) {
+                return;
+            }
+
             if (
-                chatError instanceof ChatRequestError &&
-                chatError.status !== 409
+                chatError.status === 422 &&
+                chatError.code === 'decisions_resolved'
             ) {
+                absorbResolvedDecisions();
+                clearError();
+
+                return;
+            }
+
+            if (chatError.status !== 409) {
                 void cancelTurn();
             }
         },
@@ -201,6 +223,24 @@ const isKnownConversation = computed(() =>
 useWorkspaceEcho('.conversation.titled', () => {
     router.reload({ only: ['conversations'] });
 });
+
+/**
+ * A publish the chat triggered finishes on the queue seconds after the tool
+ * answered, so the card would otherwise freeze on the `publishing` snapshot
+ * the tool returned when it dispatched the job. Folding the broadcast into
+ * the thread's tool outputs flips the badge live; the server history is
+ * untouched, and a reopened conversation replays from the server anyway.
+ */
+useWorkspaceEcho<PostPlatformStatusPayload>(
+    '.post.platform.status.updated',
+    (payload) => {
+        const next = patchPostStatus(messages.value, payload);
+
+        if (next !== null) {
+            messages.value = next;
+        }
+    },
+);
 
 const send = (text: string): void => {
     const trimmed = text.trim();

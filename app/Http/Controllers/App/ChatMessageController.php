@@ -67,6 +67,13 @@ class ChatMessageController extends Controller
 
         $prompt = $this->prompt($request);
 
+        if ($prompt instanceof Decisions && $this->isSettledReplay($conversation, $workspace, $user, $prompt)) {
+            return response()->json([
+                'message' => __('chat.errors.request_failed'),
+                'code' => 'decisions_resolved',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $model = $this->claim($conversation, $workspace, $user, $prompt);
 
         return (new WorkspaceConversationAgent($workspace, $user))
@@ -228,6 +235,57 @@ class ChatMessageController extends Controller
     {
         return $model->updated_at !== null
             && $model->updated_at->lt(now()->subMinutes(self::STALE_TURN_MINUTES));
+    }
+
+    /**
+     * Whether every decision id in this resume already has a stored tool
+     * result in the conversation — i.e. the client is replaying approvals a
+     * previous turn settled, not resuming a paused run.
+     *
+     * The client's `approval-responded` parts are terminal history: the
+     * approval continuation streams into the same step, so no new step
+     * boundary ever moves them out of resend scope, and a stale client (or a
+     * tab predating the submitted-tracking) replays them after every approval
+     * turn. Handing those to the agent would throw an approval-mismatch 500
+     * AFTER the claim committed, stranding the conversation in progress
+     * behind an error the user can neither fix nor retry past. A 422 with a
+     * machine-readable code instead refuses before any claim is taken, so the
+     * client can absorb the settled ids and carry on silently — nothing was
+     * lost, the approvals already took effect.
+     *
+     * Only a pure replay qualifies: a mix with even one pending id falls
+     * through to the agent, which still validates (and loudly rejects) a
+     * genuinely mismatched set.
+     */
+    private function isSettledReplay(
+        string $conversation,
+        Workspace $workspace,
+        User $user,
+        Decisions $prompt,
+    ): bool {
+        $ids = array_keys($prompt->all());
+
+        if ($ids === []) {
+            return false;
+        }
+
+        $model = WorkspaceConversation::query()
+            ->ownedBy($workspace->id, $user->id)
+            ->find($conversation);
+
+        if ($model === null) {
+            return false;
+        }
+
+        $resolved = $model->messages()
+            ->whereNotNull('tool_results')
+            ->pluck('tool_results')
+            ->flatten(1)
+            ->map(fn ($result): ?string => is_array($result) ? data_get($result, 'id') : null)
+            ->filter()
+            ->all();
+
+        return array_diff($ids, $resolved) === [];
     }
 
     /**

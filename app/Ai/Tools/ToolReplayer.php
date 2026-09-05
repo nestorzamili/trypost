@@ -8,8 +8,10 @@ use App\Ai\Tools\Post\GetPostTool;
 use App\Ai\Tools\Post\ListPostsTool;
 use App\Ai\Tools\Post\StartPostGenerationTool;
 use App\Http\Resources\Chat\ChatPostResource;
+use App\Models\Post;
 use App\Models\WorkspaceConversation;
 use App\Models\WorkspaceConversationMessage;
+use Illuminate\Support\Str;
 use Laravel\Ai\Tools\Request;
 use Throwable;
 
@@ -58,6 +60,18 @@ use Throwable;
  * post — every single time the conversation is opened. Its stored payload is
  * AUGMENTED instead, see {@see withGeneratedPost()}.
  *
+ * publish_post, schedule_post and update_post get the same augmentation
+ * treatment for a narrower reason: each answers with a snapshot of its post
+ * taken at dispatch time, so a publish that finished on the queue seconds
+ * later replays as `publishing` forever. Re-resolving the snapshot from the
+ * post id is read-only — no second publish, no reschedule — and it is what
+ * keeps a reopened conversation honest after the live thread already moved
+ * on (the live flip itself arrives over the post status broadcast). A post
+ * that no longer resolves is marked `deleted`, which ChatPostCard already
+ * renders; an error payload is left alone, since there is no snapshot in it
+ * to refresh. The lookup is one batched query for the whole conversation,
+ * not one per card.
+ *
  * What actually prevents it from being re-run is the early branch in
  * {@see replay()}, which handles generate_post and `continue`s BEFORE the
  * REPLAYABLE lookup happens — not its absence from that map. Absent from the
@@ -89,6 +103,19 @@ class ToolReplayer
     private const START_POST_GENERATION = 'start_post_generation';
 
     /**
+     * Write tools whose stored payload is a `{data: <post snapshot>}` taken at
+     * dispatch time. Never re-run — only the snapshot is re-resolved, see
+     * {@see withFreshPostSnapshot()}.
+     *
+     * @var array<int, string>
+     */
+    private const POST_SNAPSHOT_TOOLS = [
+        'publish_post',
+        'schedule_post',
+        'update_post',
+    ];
+
+    /**
      * Longest a generation is given before it is treated as over. Mirrors the
      * client's own bound (POST_CREATION_TIMEOUT_MS in
      * resources/js/composables/echo/usePostCreation.ts, itself carried over
@@ -105,6 +132,7 @@ class ToolReplayer
         $payloads = [];
         $position = 0;
         $lastGeneratePosition = $this->lastGeneratePostPosition($conversation);
+        $freshSnapshots = $this->freshPostSnapshots($conversation);
 
         foreach ($conversation->messages as $message) {
             $storedResults = collect($message->tool_results ?? [])->keyBy('id');
@@ -117,6 +145,12 @@ class ToolReplayer
 
                 if ($name === self::GENERATE_POST) {
                     $payloads[$id] = $this->withGeneratedPost($conversation, $message, $stored);
+
+                    continue;
+                }
+
+                if (in_array($name, self::POST_SNAPSHOT_TOOLS, true)) {
+                    $payloads[$id] = $this->withFreshPostSnapshot($stored, $freshSnapshots);
 
                     continue;
                 }
@@ -281,6 +315,87 @@ class ToolReplayer
         }
 
         data_set($payload, 'data.post', (new ChatPostResource($post))->withFullContent()->resolve());
+
+        return $this->encode($payload);
+    }
+
+    /**
+     * Re-resolve every post snapshot the conversation's publish/schedule/
+     * update calls stored, in one query. Scoped to the conversation's own
+     * workspace, so a stored id that somehow names another workspace's post
+     * resolves to nothing rather than leaking it.
+     *
+     * @return array<string, array<string, mixed>> post id => resolved ChatPostResource array
+     */
+    private function freshPostSnapshots(WorkspaceConversation $conversation): array
+    {
+        $ids = [];
+
+        foreach ($conversation->messages as $message) {
+            $storedResults = collect($message->tool_results ?? [])->keyBy('id');
+
+            foreach ($message->tool_calls ?? [] as $call) {
+                if (! in_array(data_get($call, 'name'), self::POST_SNAPSHOT_TOOLS, true)) {
+                    continue;
+                }
+
+                $stored = (string) data_get($storedResults->get(data_get($call, 'id')), 'result', '');
+                $postId = data_get(json_decode($stored, true), 'data.id');
+
+                if (is_string($postId) && Str::isUuid($postId)) {
+                    $ids[] = $postId;
+                }
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return $conversation->workspace->posts()
+            ->with(['postPlatforms.socialAccount'])
+            ->whereIn('id', array_unique($ids))
+            ->get()
+            ->mapWithKeys(fn (Post $post): array => [
+                $post->id => (new ChatPostResource($post))->withFullContent()->resolve(),
+            ])
+            ->all();
+    }
+
+    /**
+     * Swap a dispatch-time post snapshot for its current state.
+     *
+     * A publish/schedule/update that finished after the tool answered replays
+     * as its stale snapshot otherwise — a published post wearing `publishing`
+     * on every reopen. A stored id that resolves to nothing means the post is
+     * gone, which the card already knows how to render. Anything that is not
+     * a `{data: {id}}` success payload passes through untouched.
+     *
+     * @param  array<string, array<string, mixed>>  $freshSnapshots
+     */
+    private function withFreshPostSnapshot(string $stored, array $freshSnapshots): string
+    {
+        $payload = json_decode($stored, true);
+
+        if (! is_array($payload) || ! is_array(data_get($payload, 'data'))) {
+            return $stored;
+        }
+
+        $postId = data_get($payload, 'data.id');
+
+        if (! is_string($postId) || $postId === '') {
+            return $stored;
+        }
+
+        $fresh = $freshSnapshots[$postId] ?? null;
+
+        if ($fresh === null) {
+            data_set($payload, 'data.deleted', true);
+
+            return $this->encode($payload);
+        }
+
+        data_set($payload, 'data', $fresh);
 
         return $this->encode($payload);
     }
