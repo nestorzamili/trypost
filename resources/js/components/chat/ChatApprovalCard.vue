@@ -30,6 +30,12 @@ const emit = defineEmits<{
 const REASON_KEYS: Record<string, string> = {
     publish_post: 'chat.approvals.publish',
     delete_post: 'chat.approvals.delete_scheduled',
+    delete_label: 'chat.approvals.delete_label',
+    delete_signature: 'chat.approvals.delete_signature',
+    delete_asset: 'chat.approvals.delete_asset',
+    update_brand: 'chat.approvals.update_brand',
+    delete_brand_variant: 'chat.approvals.delete_brand_variant',
+    delete_brand_reference_photo: 'chat.approvals.delete_brand_reference',
 };
 
 const reason = computed<string>(() => {

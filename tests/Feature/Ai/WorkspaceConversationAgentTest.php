@@ -31,6 +31,20 @@ test('the agent exposes the post plus workspace tools', function () {
         'list_assets',
         'get_asset',
         'attach_existing_asset',
+        'create_label',
+        'update_label',
+        'delete_label',
+        'create_signature',
+        'update_signature',
+        'delete_signature',
+        'update_brand',
+        'create_brand_variant',
+        'update_brand_variant',
+        'delete_brand_variant',
+        'delete_brand_reference_photo',
+        'add_brand_reference_from_url',
+        'delete_asset',
+        'add_asset_from_url',
     ])
         ->and(collect($agent->tools())->first())->toBeInstanceOf(ListPostsTool::class);
 });

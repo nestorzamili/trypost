@@ -7,6 +7,8 @@ namespace App\Ai\Tools;
 use App\Models\Post;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Models\WorkspaceLabel;
+use App\Models\WorkspaceSignature;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Tools\Request;
@@ -47,7 +49,7 @@ abstract class WorkspaceTool implements Tool
     public function handle(Request $request): string
     {
         if ($this->writeDenied()) {
-            return $this->error(__('chat.tools.forbidden'));
+            return $this->error($this->forbiddenMessage());
         }
 
         try {
@@ -95,6 +97,15 @@ abstract class WorkspaceTool implements Tool
         return $this->authorizesWrites() && $this->user->cannot('createPost', $this->workspace);
     }
 
+    /**
+     * The message a denied write answers with. Overridden by
+     * {@see WorkspaceAdminTool}, whose gate is a different ability.
+     */
+    protected function forbiddenMessage(): string
+    {
+        return __('chat.tools.forbidden');
+    }
+
     protected function json(mixed $data): string
     {
         return json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
@@ -119,6 +130,34 @@ abstract class WorkspaceTool implements Tool
         }
 
         return $this->workspace->posts()->with(['postPlatforms.socialAccount'])->find($postId);
+    }
+
+    /**
+     * Resolve a label inside this tool's workspace. Null for a missing,
+     * malformed or foreign id — indistinguishable to the model on purpose,
+     * same contract as {@see resolvePost()}.
+     */
+    protected function resolveLabel(?string $labelId): ?WorkspaceLabel
+    {
+        if (blank($labelId)) {
+            return null;
+        }
+
+        return $this->workspace->labels()->find($labelId);
+    }
+
+    /**
+     * Resolve a signature inside this tool's workspace. Null for a missing,
+     * malformed or foreign id — indistinguishable to the model on purpose,
+     * same contract as {@see resolvePost()}.
+     */
+    protected function resolveSignature(?string $signatureId): ?WorkspaceSignature
+    {
+        if (blank($signatureId)) {
+            return null;
+        }
+
+        return $this->workspace->signatures()->find($signatureId);
     }
 
     /**

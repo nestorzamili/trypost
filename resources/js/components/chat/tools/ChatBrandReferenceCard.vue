@@ -1,50 +1,37 @@
 <script setup lang="ts">
 import { IconExternalLink } from '@tabler/icons-vue';
 
-import type { ChatAsset } from '@/types/chat';
+import type { ChatBrandReference } from '@/types/chat';
 
 defineProps<{
-    data: ChatAsset;
+    data: ChatBrandReference;
 }>();
-
-const formatSize = (bytes?: number): string => {
-    if (bytes === undefined) {
-        return '–';
-    }
-
-    if (bytes < 1024) {
-        return `${bytes} B`;
-    }
-
-    if (bytes < 1024 * 1024) {
-        return `${(bytes / 1024).toFixed(1)} KB`;
-    }
-
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
 </script>
 
 <template>
     <div
         class="flex items-center gap-2 rounded-xl border border-foreground/15 bg-background p-3"
-        data-testid="chat-asset-card"
-        dusk="chat-asset-card"
+        data-testid="chat-brand-reference-card"
+        dusk="chat-brand-reference-card"
     >
         <p
             v-if="data.deleted"
             class="text-sm text-muted-foreground"
-            data-testid="chat-asset-card-deleted"
+            data-testid="chat-brand-reference-card-deleted"
         >
-            {{ $t('chat.tool_card.asset_deleted') }}
+            {{ $t('chat.tool_card.reference_deleted') }}
         </p>
 
         <template v-else>
             <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium">
-                    {{ data.original_filename }}
+                    {{ data.label ?? data.original_filename }}
                 </p>
-                <p class="text-xs text-muted-foreground">
-                    {{ data.type }} · {{ formatSize(data.size) }}
+                <p
+                    v-if="data.label"
+                    class="truncate text-xs text-muted-foreground"
+                >
+                    {{ data.original_filename }}
                 </p>
             </div>
 

@@ -4,11 +4,22 @@ declare(strict_types=1);
 
 namespace App\Ai\Agents;
 
+use App\Ai\Tools\Asset\AddAssetFromUrlTool;
 use App\Ai\Tools\Asset\AttachExistingAssetTool;
+use App\Ai\Tools\Asset\DeleteAssetTool;
 use App\Ai\Tools\Asset\GetAssetTool;
 use App\Ai\Tools\Asset\ListAssetsTool;
+use App\Ai\Tools\Brand\AddBrandReferenceFromUrlTool;
+use App\Ai\Tools\Brand\CreateBrandVariantTool;
+use App\Ai\Tools\Brand\DeleteBrandReferencePhotoTool;
+use App\Ai\Tools\Brand\DeleteBrandVariantTool;
 use App\Ai\Tools\Brand\GetBrandTool;
+use App\Ai\Tools\Brand\UpdateBrandTool;
+use App\Ai\Tools\Brand\UpdateBrandVariantTool;
+use App\Ai\Tools\Label\CreateLabelTool;
+use App\Ai\Tools\Label\DeleteLabelTool;
 use App\Ai\Tools\Label\ListLabelsTool;
+use App\Ai\Tools\Label\UpdateLabelTool;
 use App\Ai\Tools\Post\CreatePostTool;
 use App\Ai\Tools\Post\DeletePostTool;
 use App\Ai\Tools\Post\GeneratePostTool;
@@ -19,7 +30,10 @@ use App\Ai\Tools\Post\PublishPostTool;
 use App\Ai\Tools\Post\SchedulePostTool;
 use App\Ai\Tools\Post\StartPostGenerationTool;
 use App\Ai\Tools\Post\UpdatePostTool;
+use App\Ai\Tools\Signature\CreateSignatureTool;
+use App\Ai\Tools\Signature\DeleteSignatureTool;
 use App\Ai\Tools\Signature\ListSignaturesTool;
+use App\Ai\Tools\Signature\UpdateSignatureTool;
 use App\Models\User;
 use App\Models\Workspace;
 use Laravel\Ai\Attributes\MaxSteps;
@@ -89,6 +103,20 @@ class WorkspaceConversationAgent implements Agent, Conversational, HasTools
             new ListAssetsTool($this->workspace, $this->user),
             new GetAssetTool($this->workspace, $this->user),
             new AttachExistingAssetTool($this->workspace, $this->user),
+            new CreateLabelTool($this->workspace, $this->user),
+            new UpdateLabelTool($this->workspace, $this->user),
+            new DeleteLabelTool($this->workspace, $this->user),
+            new CreateSignatureTool($this->workspace, $this->user),
+            new UpdateSignatureTool($this->workspace, $this->user),
+            new DeleteSignatureTool($this->workspace, $this->user),
+            new UpdateBrandTool($this->workspace, $this->user),
+            new CreateBrandVariantTool($this->workspace, $this->user),
+            new UpdateBrandVariantTool($this->workspace, $this->user),
+            new DeleteBrandVariantTool($this->workspace, $this->user),
+            new DeleteBrandReferencePhotoTool($this->workspace, $this->user),
+            new AddBrandReferenceFromUrlTool($this->workspace, $this->user),
+            new DeleteAssetTool($this->workspace, $this->user),
+            new AddAssetFromUrlTool($this->workspace, $this->user),
         ];
     }
 }

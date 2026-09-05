@@ -7,6 +7,7 @@ use App\Ai\Tools\Asset\AttachExistingAssetTool;
 use App\Ai\Tools\Asset\GetAssetTool;
 use App\Ai\Tools\Asset\ListAssetsTool;
 use App\Ai\Tools\Brand\GetBrandTool;
+use App\Ai\Tools\Brand\UpdateBrandTool;
 use App\Ai\Tools\Label\ListLabelsTool;
 use App\Ai\Tools\Post\CreatePostTool;
 use App\Ai\Tools\Post\DeletePostTool;
@@ -130,6 +131,27 @@ test('attach_existing_asset refuses a viewer and attaches nothing', function () 
         ->and($post->fresh()->media)->toBe([]);
 });
 
+test('brand tools refuse a member with the admin message and change nothing', function () {
+    [$user, $workspace] = workspaceUserWithRole(Role::Member);
+
+    $output = json_decode((new UpdateBrandTool($workspace, $user))->handle(
+        new Request(['brand_description' => 'A member should not be able to write this'])
+    ), true);
+
+    expect($output)->toBe(['error' => __('chat.tools.admin_forbidden')])
+        ->and($workspace->fresh()->brand_description)->not->toBe('A member should not be able to write this');
+});
+
+test('brand tools stay open to a workspace admin', function () {
+    [$user, $workspace] = workspaceUserWithRole(Role::Admin);
+
+    $output = json_decode((new UpdateBrandTool($workspace, $user))->handle(
+        new Request(['brand_description' => 'An admin draft description'])
+    ), true);
+
+    expect($output['data']['brand_description'])->toBe('An admin draft description');
+});
+
 test('generate_post refuses a viewer and dispatches no generation', function () {
     Bus::fake();
 
@@ -201,5 +223,5 @@ test('every mutating tool the agent exposes extends WorkspaceWriteTool', functio
         ->every(fn (Tool $tool): bool => $tool instanceof WorkspaceWriteTool);
 
     expect($gated)->toBeTrue()
-        ->and(collect($agent->tools())->count())->toBe(16);
+        ->and(collect($agent->tools())->count())->toBe(30);
 });

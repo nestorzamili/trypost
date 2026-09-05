@@ -28,26 +28,48 @@ export interface ChatPost {
 /** Mirrors one row of `App\Ai\Tools\Label\ListLabelsTool`'s payload. */
 export interface ChatLabel {
     id: string;
-    name: string;
-    color: string;
+    /** Absent on the `delete_label` payload. */
+    name?: string;
+    /** Absent on the `delete_label` payload. */
+    color?: string;
+    /** True when the create call returned the pre-existing label instead. */
+    already_existed?: boolean;
+    /** True when the label was just deleted. */
+    deleted?: boolean;
+    /** How many posts lost the tag — `delete_label` only. */
+    detached_from_posts?: number;
 }
 
 /** Mirrors one row of `App\Ai\Tools\Signature\ListSignaturesTool`'s payload. */
 export interface ChatSignature {
     id: string;
-    name: string;
-    content: string;
+    /** Absent on the `delete_signature` payload. */
+    name?: string;
+    /** Absent on the `delete_signature` payload. */
+    content?: string;
+    /** True when the create call returned the pre-existing signature instead. */
+    already_existed?: boolean;
+    /** True when the signature was just deleted. */
+    deleted?: boolean;
 }
 
 /** Mirrors one row of `App\Ai\Tools\Asset\ListAssetsTool`'s payload. */
 export interface ChatAsset {
     id: string;
     original_filename: string;
-    type: string;
-    mime_type: string;
-    size: number;
-    url: string;
+    /** Absent on the `delete_asset` payload. */
+    type?: string;
+    /** Absent on the `delete_asset` payload. */
+    mime_type?: string;
+    /** Absent on the `delete_asset` payload. */
+    size?: number;
+    /** Absent on the `delete_asset` payload. */
+    url?: string;
     meta?: Record<string, unknown> | null;
+    /** True when the asset was just deleted. */
+    deleted?: boolean;
+    /** How many posts embed a copy — `delete_asset` only. */
+    used_by_posts?: number;
 }
 
 /** Mirrors `App\Ai\Tools\Brand\GetBrandTool`'s payload. */
@@ -60,8 +82,12 @@ export interface ChatBrandVariant {
     text_color: string | null;
     headline_font: string | null;
     body_font: string | null;
+    label_font: string | null;
+    accent_font: string | null;
     colors: Record<string, string>;
     visual_notes: string | null;
+    /** True when the variant was just deleted. */
+    deleted?: boolean;
 }
 
 /** Mirrors one reference photo of `App\Ai\Tools\Brand\GetBrandTool`'s payload. */
@@ -69,8 +95,12 @@ export interface ChatBrandReference {
     id: string;
     original_filename: string;
     label: string | null;
-    mime_type: string;
-    url: string;
+    /** Absent on the `delete_brand_reference_photo` payload. */
+    mime_type?: string;
+    /** Absent on the `delete_brand_reference_photo` payload. */
+    url?: string;
+    /** True when the photo was just deleted. */
+    deleted?: boolean;
 }
 
 /** Mirrors `App\Ai\Tools\Brand\GetBrandTool`'s payload. */

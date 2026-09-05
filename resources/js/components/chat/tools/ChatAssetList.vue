@@ -7,7 +7,11 @@ defineProps<{
     data: ChatAsset[];
 }>();
 
-const formatSize = (bytes: number): string => {
+const formatSize = (bytes?: number): string => {
+    if (bytes === undefined) {
+        return '–';
+    }
+
     if (bytes < 1024) {
         return `${bytes} B`;
     }
@@ -41,7 +45,7 @@ const formatSize = (bytes: number): string => {
             </div>
 
             <a
-                :href="asset.url"
+                :href="asset.url ?? ''"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-primary hover:underline"

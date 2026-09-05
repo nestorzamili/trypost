@@ -3,12 +3,16 @@ import type { Component } from 'vue';
 import ChatAssetCard from '@/components/chat/tools/ChatAssetCard.vue';
 import ChatAssetList from '@/components/chat/tools/ChatAssetList.vue';
 import ChatBrandCard from '@/components/chat/tools/ChatBrandCard.vue';
+import ChatBrandReferenceCard from '@/components/chat/tools/ChatBrandReferenceCard.vue';
+import ChatBrandVariantCard from '@/components/chat/tools/ChatBrandVariantCard.vue';
+import ChatLabelCard from '@/components/chat/tools/ChatLabelCard.vue';
 import ChatLabelList from '@/components/chat/tools/ChatLabelList.vue';
 import ChatPostCard from '@/components/chat/tools/ChatPostCard.vue';
 import ChatPostGenerationCard from '@/components/chat/tools/ChatPostGenerationCard.vue';
 import ChatPostGenerationResult from '@/components/chat/tools/ChatPostGenerationResult.vue';
 import ChatPostList from '@/components/chat/tools/ChatPostList.vue';
 import ChatPostMetrics from '@/components/chat/tools/ChatPostMetrics.vue';
+import ChatSignatureCard from '@/components/chat/tools/ChatSignatureCard.vue';
 import ChatSignatureList from '@/components/chat/tools/ChatSignatureList.vue';
 
 export type ToolComponentKind = 'display' | 'prompt';
@@ -51,6 +55,26 @@ export const toolComponents: Record<string, ToolComponentEntry> = {
     list_signatures: { component: ChatSignatureList, kind: 'display' },
     list_assets: { component: ChatAssetList, kind: 'display' },
     get_asset: { component: ChatAssetCard, kind: 'display' },
+    create_label: { component: ChatLabelCard, kind: 'display' },
+    update_label: { component: ChatLabelCard, kind: 'display' },
+    delete_label: { component: ChatLabelCard, kind: 'display' },
+    create_signature: { component: ChatSignatureCard, kind: 'display' },
+    update_signature: { component: ChatSignatureCard, kind: 'display' },
+    delete_signature: { component: ChatSignatureCard, kind: 'display' },
+    update_brand: { component: ChatBrandCard, kind: 'display' },
+    create_brand_variant: { component: ChatBrandVariantCard, kind: 'display' },
+    update_brand_variant: { component: ChatBrandVariantCard, kind: 'display' },
+    delete_brand_variant: { component: ChatBrandVariantCard, kind: 'display' },
+    delete_brand_reference_photo: {
+        component: ChatBrandReferenceCard,
+        kind: 'display',
+    },
+    add_brand_reference_from_url: {
+        component: ChatBrandReferenceCard,
+        kind: 'display',
+    },
+    delete_asset: { component: ChatAssetCard, kind: 'display' },
+    add_asset_from_url: { component: ChatAssetCard, kind: 'display' },
 };
 
 export const resolveToolComponent = (
