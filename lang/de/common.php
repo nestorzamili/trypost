@@ -61,6 +61,13 @@ return [
     'close' => 'Schließen',
     'loading_more' => 'Weitere werden geladen...',
 
+    'pagination' => [
+        'label' => 'Seitennummerierung',
+        'previous' => 'Vorherige Seite',
+        'next' => 'Nächste Seite',
+        'go_to_page' => 'Zu Seite :page wechseln',
+    ],
+
     'actions' => [
         'copy' => 'Kopieren',
         'copied' => 'Kopiert',

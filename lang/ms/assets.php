@@ -1,0 +1,86 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'title' => 'Aset',
+    'tabs' => [
+        'my_uploads' => 'Muat Naik Saya',
+        'stock_photos' => 'Foto Stok',
+        'gifs' => 'GIF',
+        'references' => 'Rujukan Jenama',
+    ],
+    'upload' => [
+        'drag_drop' => 'Seret & lepas fail anda di sini, atau klik untuk memilih',
+        'formats' => 'JPEG, PNG, GIF, WebP, MP4, PDF',
+        'uploading' => 'Memuat naik...',
+        'failed' => 'Tidak dapat memuat naik :file. Sila cuba lagi.',
+        'file_too_large' => 'Saiz fail melebihi had maksimum yang dibenarkan (:max MB).',
+        'cancelled' => 'Muat naik dibatalkan.',
+    ],
+    'empty' => [
+        'title' => 'Tiada aset lagi',
+        'description' => 'Muat naik imej dan video untuk membina pustaka media anda.',
+    ],
+    'save_to_assets' => 'Simpan ke Aset',
+    'saved' => 'Disimpan ke aset anda!',
+    'create_post' => 'Cipta siaran',
+    'add_to_post' => 'Tambah ke siaran',
+    'search_placeholder' => 'Cari media...',
+    'delete' => [
+        'title' => 'Padam aset',
+        'description' => 'Adakah anda pasti ingin memadamkan aset ini? Tindakan ini tidak boleh dibatalkan.',
+        'confirm' => 'Padam',
+        'cancel' => 'Batal',
+    ],
+    'unsplash' => [
+        'search_placeholder' => 'Cari foto percuma...',
+        'no_results' => 'Tiada foto ditemui',
+        'no_results_description' => 'Cuba istilah carian lain.',
+        'trending' => 'Sohor kini di Unsplash',
+        'start_searching' => 'Cari foto stok percuma dari Unsplash',
+    ],
+    'giphy' => [
+        'trending' => 'Sohor kini di Giphy',
+        'search_placeholder' => 'Cari GIF...',
+        'no_results' => 'Tiada GIF ditemui',
+        'no_results_description' => 'Cuba istilah carian lain.',
+        'powered_by' => 'Dikuasakan oleh GIPHY',
+    ],
+    'references' => [
+        'description' => 'Foto yang membimbing penjanaan imej AI: wajah untuk dikekalkan, logo, produk, dan gaya visual. Sehingga :max foto.',
+        'kind_label' => 'Jenis foto',
+        'label_label' => 'Label (pilihan)',
+        'label_placeholder' => 'cth. Sara, potret menghadap depan',
+        'kinds' => [
+            'face_closeup' => 'Wajah dekat',
+            'full_body' => 'Seluruh badan',
+            'logo' => 'Logo',
+            'product' => 'Produk',
+            'style' => 'Gaya',
+            'other' => 'Lain-lain',
+        ],
+        'upload' => [
+            'drag_drop' => 'Seret & lepas foto rujukan di sini, atau klik untuk memilih',
+            'formats' => 'JPEG, PNG, GIF, WebP',
+        ],
+        'empty' => [
+            'title' => 'Tiada rujukan jenama lagi',
+            'description' => 'Tambah 3–5 foto yang jelas: potret menghadap depan dengan pencahayaan yang baik, logo anda, serta produk atau gaya yang anda mahu AI gunakan semula.',
+        ],
+        'add_from_assets' => 'Tambah dari Aset',
+        'from_assets_title' => 'Pilih foto daripada aset anda',
+        'promote' => 'Simpan sebagai rujukan',
+        'promoted' => 'Disimpan sebagai rujukan jenama.',
+        'promote_limit' => 'Hanya :remaining lagi foto boleh ditambah (maksimum :max).',
+        'updated' => 'Foto rujukan dikemas kini.',
+        'deleted_title' => 'Padam foto rujukan',
+        'deleted_description' => 'Adakah anda pasti ingin memadamkan foto rujukan ini? Penjanaan AI tidak akan menggunakannya lagi. Tindakan ini tidak boleh dibatalkan.',
+        'limit_reached' => 'Anda sudah mempunyai :max foto rujukan jenama. Padam satu sebelum menambah yang lain.',
+        'search_placeholder' => 'Cari rujukan...',
+        'all_kinds' => 'Semua jenis',
+        'edit' => 'Sunting label dan jenis',
+        'save' => 'Simpan',
+        'manage' => 'Urus dalam Aset',
+    ],
+];

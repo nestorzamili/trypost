@@ -113,13 +113,24 @@ class ImageCardTemplate implements AiContentTemplate
         $media = [];
 
         if ($context->socialAccount) {
-            $media = app(PostImagePipeline::class)->forCarousel(
+            $slideMedia = app(PostImagePipeline::class)->forCarousel(
                 workspace: $context->workspace,
                 account: $context->socialAccount,
                 structured: $structured,
                 contentType: ContentType::InstagramFeed,
                 applyBrandVisuals: $context->applyBrandVisuals,
+                brand: $context->brand,
+                referenceImages: $context->referenceImages,
+                referenceKinds: $context->referenceKinds,
+                existingSlideMedia: $context->existingSlideMedia,
             );
+
+            // Expose the per-slide map so the job can persist it for an
+            // idempotent resume, then flatten in slide order for the post.
+            $context->renderedSlideMedia = $slideMedia;
+
+            ksort($slideMedia);
+            $media = array_values($slideMedia);
         }
 
         return new GeneratedPost($caption, $media, ContentType::InstagramFeed);
@@ -144,6 +155,9 @@ class ImageCardTemplate implements AiContentTemplate
                 structured: $structured,
                 contentType: $contentType,
                 applyBrandVisuals: $context->applyBrandVisuals,
+                brand: $context->brand,
+                referenceImages: $context->referenceImages,
+                referenceKinds: $context->referenceKinds,
             );
         }
 

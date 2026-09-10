@@ -84,7 +84,9 @@ const pageErrors = usePageErrors();
                             placeholder="email@example.com"
                             :default-value="email ?? ''"
                         />
-                        <InputError :message="errors.email || pageErrors.email" />
+                        <InputError
+                            :message="errors.email || pageErrors.email"
+                        />
                     </div>
 
                     <div class="grid gap-2">

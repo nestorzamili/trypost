@@ -5,46 +5,82 @@ import { IconLoader2, IconSparkles } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
-import { start as startPostCreation } from '@/actions/App/Http/Controllers/App/PostAiCreateController';
+import { start as startPostCreation } from '@/actions/App/Http/Controllers/App/PostCreateController';
 import { Button } from '@/components/ui/button';
 import { subscribePrivateChannel } from '@/composables/echo/subscribePrivateChannel';
 import dateFormat from '@/date';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { extractErrorMessage } from '@/lib/httpError';
 import { calendar as calendarRoute } from '@/routes/app';
-import { create as createPostRoute, edit as editPostRoute } from '@/routes/app/posts';
+import {
+    create as createPostRoute,
+    edit as editPostRoute,
+} from '@/routes/app/posts';
+import { status as statusRoute } from '@/routes/app/posts/ai';
 
-const props = defineProps<{
-    creationId: string;
-    channel: string;
-    imageCount: number;
-    format: string;
-    prompt: string;
-    socialAccountId: string | null;
-    date: string | null;
-    template: string;
-    applyBrandVisuals: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        creationId: string;
+        channel: string;
+        imageCount?: number;
+        format?: string;
+        prompt?: string;
+        socialAccountId?: string | null;
+        date?: string | null;
+        style?: string;
+        template?: string;
+        applyBrandVisuals?: boolean;
+        languageCode?: string | null;
+        useBrandReferences?: boolean;
+        referenceMediaIds?: string[];
+        alreadyStarted?: boolean;
+    }>(),
+    {
+        imageCount: 0,
+        format: '',
+        prompt: '',
+        socialAccountId: null,
+        date: null,
+        style: 'image_card',
+        template: 'image_card',
+        applyBrandVisuals: true,
+        languageCode: null,
+        useBrandReferences: false,
+        referenceMediaIds: () => [],
+        alreadyStarted: false,
+    },
+);
 
 const status = ref<'loading' | 'error'>('loading');
 const errorMessage = ref('');
+const progressPhase = ref<string | null>(null);
+const imageDone = ref(0);
+const imageExpected = ref(0);
 let subscribed = false;
 let unmounted = false;
 let generationTimeout: ReturnType<typeof setTimeout> | null = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 const TEXT_BASELINE_SECONDS = 30;
 const PER_IMAGE_SECONDS = 35;
 const GENERATION_TIMEOUT_MS = 960_000;
 
-const estimatedSeconds = computed(() => TEXT_BASELINE_SECONDS + props.imageCount * PER_IMAGE_SECONDS);
+const estimatedSeconds = computed(
+    () => TEXT_BASELINE_SECONDS + props.imageCount * PER_IMAGE_SECONDS,
+);
 
 const minutesLabel = computed(() => {
     const minutes = Math.max(1, Math.ceil(estimatedSeconds.value / 60));
-    const key = minutes === 1 ? 'posts.create.steps.loading_eta_minute_one' : 'posts.create.steps.loading_eta_minute_other';
+    const key =
+        minutes === 1
+            ? 'posts.create.steps.loading_eta_minute_one'
+            : 'posts.create.steps.loading_eta_minute_other';
     return trans(key, { count: String(minutes) });
 });
 
-const etaLabel = computed(() => trans('posts.create.steps.loading_eta', { minutes: minutesLabel.value }));
+const etaLabel = computed(() =>
+    trans('posts.create.steps.loading_eta', { minutes: minutesLabel.value }),
+);
 
 const tipKeys = [
     'posts.create.steps.loading_tip_credits',
@@ -58,7 +94,9 @@ const tipKeys = [
 const tipIndex = ref(0);
 let tipTimer: ReturnType<typeof setInterval> | null = null;
 
-const currentTip = computed(() => trans(tipKeys[tipIndex.value % tipKeys.length]));
+const currentTip = computed(() =>
+    trans(tipKeys[tipIndex.value % tipKeys.length]),
+);
 
 const elapsed = ref(0);
 let elapsedTimer: ReturnType<typeof setInterval> | null = null;
@@ -66,8 +104,23 @@ let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 const elapsedLabel = computed(() => dateFormat.formatClock(elapsed.value));
 
 const progress = computed(() => {
+    // Prefer real per-image completion once the image phase reports counts;
+    // fall back to the elapsed-time estimate for the text phase.
+    if (imageExpected.value > 0) {
+        return Math.min(1, imageDone.value / imageExpected.value);
+    }
     const ratio = elapsed.value / estimatedSeconds.value;
     return Math.min(0.95, ratio);
+});
+
+const imageProgressLabel = computed(() => {
+    if (imageExpected.value <= 0) {
+        return null;
+    }
+    return trans('posts.create.steps.loading_image_progress', {
+        done: String(imageDone.value),
+        expected: String(imageExpected.value),
+    });
 });
 
 const unsubscribe = () => {
@@ -79,6 +132,10 @@ const unsubscribe = () => {
         clearTimeout(generationTimeout);
         generationTimeout = null;
     }
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
 };
 
 const httpStart = useHttp<{
@@ -88,8 +145,12 @@ const httpStart = useHttp<{
     image_count: number;
     prompt: string;
     date: string | null;
+    style: string;
     template: string;
     apply_brand_visuals: boolean;
+    language_code: string | null;
+    use_brand_references: boolean;
+    reference_media_ids: string[];
 }>({
     creation_id: props.creationId,
     format: props.format,
@@ -97,23 +158,82 @@ const httpStart = useHttp<{
     image_count: props.imageCount,
     prompt: props.prompt,
     date: props.date,
-    template: props.template,
+    style: props.style || props.template || 'image_card',
+    template: props.template || props.style || 'image_card',
     apply_brand_visuals: props.applyBrandVisuals,
+    language_code: props.languageCode,
+    use_brand_references: props.useBrandReferences,
+    reference_media_ids: props.referenceMediaIds,
 });
 
-const startGeneration = async () => {
-    const confirmed = await subscribePrivateChannel(props.channel, (channel) => {
-        subscribed = true;
-        channel.listen('.ai.creation.completed', (e: { post_id?: string; error?: string }) => {
-            unsubscribe();
-            if (e.error || !e.post_id) {
-                status.value = 'error';
-                errorMessage.value = e.error ?? trans('posts.create.steps.preview_error');
-                return;
-            }
-            router.visit(editPostRoute(e.post_id).url);
+const pollStatus = async () => {
+    try {
+        const response = await fetch(statusRoute.url(props.creationId), {
+            headers: { Accept: 'application/json' },
         });
-    });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.post_id) {
+            unsubscribe();
+            router.visit(editPostRoute(data.post_id).url);
+            return;
+        }
+
+        if (
+            data.status === 'failed_text' ||
+            data.status === 'failed_image' ||
+            data.error
+        ) {
+            unsubscribe();
+            status.value = 'error';
+            errorMessage.value =
+                data.error ?? trans('posts.create.steps.preview_error');
+        }
+    } catch {
+        // Poll failure is non-fatal; WebSocket listener remains primary
+    }
+};
+
+const startGeneration = async () => {
+    const confirmed = await subscribePrivateChannel(
+        props.channel,
+        (channel) => {
+            subscribed = true;
+            channel.listen(
+                '.ai.creation.completed',
+                (e: { post_id?: string; error?: string }) => {
+                    unsubscribe();
+                    if (e.error || !e.post_id) {
+                        status.value = 'error';
+                        errorMessage.value =
+                            e.error ??
+                            trans('posts.create.steps.preview_error');
+                        return;
+                    }
+                    router.visit(editPostRoute(e.post_id).url);
+                },
+            );
+            channel.listen(
+                '.ai.creation.progress',
+                (e: {
+                    phase?: string;
+                    image_done?: number;
+                    image_expected?: number;
+                }) => {
+                    if (e.phase) {
+                        progressPhase.value = e.phase;
+                    }
+                    if (typeof e.image_expected === 'number') {
+                        imageExpected.value = e.image_expected;
+                    }
+                    if (typeof e.image_done === 'number') {
+                        imageDone.value = e.image_done;
+                    }
+                },
+            );
+        },
+    );
 
     if (unmounted) {
         unsubscribe();
@@ -133,18 +253,29 @@ const startGeneration = async () => {
         errorMessage.value = trans('posts.create.steps.preview_error');
     }, GENERATION_TIMEOUT_MS);
 
-    try {
-        await httpStart.post(startPostCreation.url());
+    // Fallback polling every 6 seconds in case WebSocket is unstable
+    pollTimer = setInterval(pollStatus, 6000);
 
-        if (httpStart.hasErrors) {
+    if (!props.alreadyStarted || forceStart.value) {
+        try {
+            await httpStart.post(startPostCreation.url());
+
+            if (httpStart.hasErrors) {
+                unsubscribe();
+                status.value = 'error';
+                errorMessage.value =
+                    httpStart.errors.prompt ??
+                    httpStart.errors.social_account_id ??
+                    Object.values(httpStart.errors)[0] ??
+                    trans('posts.create.steps.preview_error');
+            }
+        } catch (error: unknown) {
             unsubscribe();
             status.value = 'error';
-            errorMessage.value = httpStart.errors.social_account_id ?? Object.values(httpStart.errors)[0] ?? trans('posts.create.steps.preview_error');
+            errorMessage.value =
+                extractErrorMessage(error) ??
+                trans('posts.create.steps.preview_error');
         }
-    } catch (error: unknown) {
-        unsubscribe();
-        status.value = 'error';
-        errorMessage.value = extractErrorMessage(error) ?? trans('posts.create.steps.preview_error');
     }
 };
 
@@ -154,6 +285,21 @@ const leave = () => {
 
 const createAnother = () => {
     router.visit(createPostRoute().url);
+};
+
+// On retry we always re-POST, even if the first attempt had already started.
+const forceStart = ref(false);
+
+const retry = () => {
+    unsubscribe();
+    status.value = 'loading';
+    errorMessage.value = '';
+    progressPhase.value = null;
+    imageDone.value = 0;
+    imageExpected.value = 0;
+    elapsed.value = 0;
+    forceStart.value = true;
+    startGeneration();
 };
 
 onMounted(() => {
@@ -178,57 +324,129 @@ onBeforeUnmount(() => {
     <Head :title="$t('posts.create.steps.loading_page_title')" />
 
     <AppLayout>
-        <div class="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-4 py-12">
-            <div class="inline-flex size-14 -rotate-2 items-center justify-center rounded-2xl border-2 border-foreground bg-violet-200 shadow-2xs">
-                <IconLoader2 v-if="status === 'loading'" class="size-7 animate-spin text-foreground" stroke-width="2" />
-                <IconSparkles v-else class="size-7 text-foreground" stroke-width="2" />
+        <div
+            class="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-4 py-12"
+        >
+            <div
+                class="inline-flex size-14 -rotate-2 items-center justify-center rounded-2xl border-2 border-foreground bg-violet-200 shadow-2xs"
+            >
+                <IconLoader2
+                    v-if="status === 'loading'"
+                    class="size-7 animate-spin text-foreground"
+                    stroke-width="2"
+                    aria-hidden="true"
+                />
+                <IconSparkles
+                    v-else
+                    class="size-7 text-foreground"
+                    stroke-width="2"
+                    aria-hidden="true"
+                />
             </div>
 
             <h1 class="text-center text-2xl font-bold text-foreground">
                 {{ $t('posts.create.steps.loading_page_title') }}
             </h1>
 
-            <div v-if="status === 'loading'" class="flex w-full flex-col items-center gap-4">
-                <p class="text-center text-sm text-foreground/70">{{ etaLabel }}</p>
+            <div
+                v-if="status === 'loading'"
+                class="flex w-full flex-col items-center gap-4"
+            >
+                <p class="text-center text-sm text-foreground/70">
+                    {{ etaLabel }}
+                </p>
 
                 <div class="w-full max-w-md">
-                    <div class="h-2 w-full overflow-hidden rounded-full border-2 border-foreground bg-card">
+                    <div
+                        class="h-2 w-full overflow-hidden rounded-full border-2 border-foreground bg-card"
+                        role="progressbar"
+                        :aria-valuenow="Math.round(progress * 100)"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        :aria-label="
+                            imageProgressLabel ||
+                            $t('posts.create.steps.loading_page_title')
+                        "
+                    >
                         <div
                             class="h-full bg-foreground transition-[width] duration-700 ease-out"
-                            :style="{ width: `${Math.round(progress * 100)}%` }"
+                            :style="{
+                                width: `${Math.round(progress * 100)}%`,
+                            }"
                         ></div>
                     </div>
-                    <div class="mt-1.5 flex justify-between text-[11px] font-mono text-foreground/50">
+                    <div
+                        class="mt-1.5 flex justify-between font-mono text-[11px] text-foreground/50"
+                    >
                         <span>{{ elapsedLabel }}</span>
-                        <span>{{ minutesLabel }}</span>
+                        <span>{{ imageProgressLabel || minutesLabel }}</span>
                     </div>
                 </div>
 
-                <div class="mt-4 flex min-h-[3rem] w-full max-w-lg items-center justify-center rounded-xl border-2 border-foreground bg-card px-5 py-3 shadow-2xs">
-                    <p class="text-center text-sm text-foreground/80 transition-opacity">
+                <div
+                    class="mt-4 flex min-h-[3rem] w-full max-w-lg items-center justify-center rounded-xl border-2 border-foreground bg-card px-5 py-3 shadow-2xs"
+                    aria-live="polite"
+                >
+                    <p
+                        class="text-center text-sm text-foreground/80 transition-opacity"
+                    >
                         💡 {{ currentTip }}
                     </p>
                 </div>
 
-                <div class="mt-8 flex w-full max-w-lg flex-col items-center gap-3 rounded-2xl border-2 border-foreground bg-card p-5 text-center shadow-2xs">
-                    <p class="text-base font-bold text-foreground">{{ $t('posts.create.steps.loading_leave_title') }}</p>
-                    <p class="text-sm text-foreground/70">{{ $t('posts.create.steps.loading_leave_body') }}</p>
-                    <div class="flex flex-wrap items-center justify-center gap-2 pt-1">
-                        <Button @click="createAnother">{{ $t('posts.create.steps.loading_create_another_cta') }}</Button>
-                        <Button variant="outline" @click="leave">{{ $t('posts.create.steps.loading_leave_cta') }}</Button>
+                <div
+                    class="mt-8 flex w-full max-w-lg flex-col items-center gap-3 rounded-2xl border-2 border-foreground bg-card p-5 text-center shadow-2xs"
+                >
+                    <p class="text-base font-bold text-foreground">
+                        {{ $t('posts.create.steps.loading_leave_title') }}
+                    </p>
+                    <p class="text-sm text-foreground/70">
+                        {{ $t('posts.create.steps.loading_leave_body') }}
+                    </p>
+                    <div
+                        class="flex flex-wrap items-center justify-center gap-2 pt-1"
+                    >
+                        <Button @click="createAnother">
+                            {{
+                                $t(
+                                    'posts.create.steps.loading_create_another_cta',
+                                )
+                            }}
+                        </Button>
+                        <Button variant="outline" @click="leave">
+                            {{ $t('posts.create.steps.loading_leave_cta') }}
+                        </Button>
                     </div>
                 </div>
             </div>
 
-            <div v-else class="flex w-full max-w-lg flex-col items-center gap-4">
-                <div class="w-full rounded-xl border-2 border-foreground bg-rose-50 p-4 shadow-2xs">
+            <div
+                v-else
+                class="flex w-full max-w-lg flex-col items-center gap-4"
+            >
+                <div
+                    class="w-full rounded-xl border-2 border-foreground bg-rose-50 p-4 shadow-2xs"
+                    role="alert"
+                >
                     <p class="text-center text-sm font-semibold text-rose-700">
-                        {{ errorMessage || $t('posts.create.steps.preview_error') }}
+                        {{
+                            errorMessage ||
+                            $t('posts.create.steps.preview_error')
+                        }}
                     </p>
                 </div>
                 <div class="flex flex-wrap items-center justify-center gap-2">
-                    <Button @click="createAnother">{{ $t('posts.create.steps.loading_create_another_cta') }}</Button>
-                    <Button variant="outline" @click="leave">{{ $t('posts.create.steps.loading_leave_cta') }}</Button>
+                    <Button @click="retry">
+                        {{ $t('posts.ai.generate.retry') }}
+                    </Button>
+                    <Button variant="outline" @click="createAnother">
+                        {{
+                            $t('posts.create.steps.loading_create_another_cta')
+                        }}
+                    </Button>
+                    <Button variant="outline" @click="leave">
+                        {{ $t('posts.create.steps.loading_leave_cta') }}
+                    </Button>
                 </div>
             </div>
         </div>

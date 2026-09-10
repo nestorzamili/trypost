@@ -61,6 +61,13 @@ return [
     'close' => 'Kapat',
     'loading_more' => 'Daha fazla yükleniyor...',
 
+    'pagination' => [
+        'label' => 'Sayfalama',
+        'previous' => 'Önceki sayfa',
+        'next' => 'Sonraki sayfa',
+        'go_to_page' => ':page. sayfaya git',
+    ],
+
     'actions' => [
         'copy' => 'Kopyala',
         'copied' => 'Kopyalandı',

@@ -5,7 +5,8 @@ export const RepurposeStatus = {
     Disabled: 'disabled',
 } as const;
 
-export type RepurposeStatusValue = (typeof RepurposeStatus)[keyof typeof RepurposeStatus];
+export type RepurposeStatusValue =
+    (typeof RepurposeStatus)[keyof typeof RepurposeStatus];
 
 export const PauseReason = {
     SourceRemoved: 'source_removed',
@@ -22,7 +23,8 @@ export const RepurposeHealth = {
     Ready: 'ready',
 } as const;
 
-export type RepurposeHealthValue = (typeof RepurposeHealth)[keyof typeof RepurposeHealth];
+export type RepurposeHealthValue =
+    (typeof RepurposeHealth)[keyof typeof RepurposeHealth];
 
 export const RepurposeItemStatus = {
     Pending: 'pending',
@@ -33,9 +35,15 @@ export const RepurposeItemStatus = {
     Failed: 'failed',
 } as const;
 
-export type RepurposeItemStatusValue = (typeof RepurposeItemStatus)[keyof typeof RepurposeItemStatus];
+export type RepurposeItemStatusValue =
+    (typeof RepurposeItemStatus)[keyof typeof RepurposeItemStatus];
 
-type BadgeVariant = 'default' | 'secondary' | 'warning' | 'destructive' | 'outline';
+type BadgeVariant =
+    | 'default'
+    | 'secondary'
+    | 'warning'
+    | 'destructive'
+    | 'outline';
 
 const statusVariants = {
     [RepurposeStatus.Draft]: 'outline',
@@ -53,7 +61,10 @@ const itemStatusVariants = {
     [RepurposeItemStatus.Failed]: 'destructive',
 } as const satisfies Record<RepurposeItemStatusValue, BadgeVariant>;
 
-export const repurposeStatusVariant = (status: RepurposeStatusValue): BadgeVariant => statusVariants[status];
+export const repurposeStatusVariant = (
+    status: RepurposeStatusValue,
+): BadgeVariant => statusVariants[status];
 
-export const repurposeItemStatusVariant = (status: RepurposeItemStatusValue): BadgeVariant =>
-    itemStatusVariants[status];
+export const repurposeItemStatusVariant = (
+    status: RepurposeItemStatusValue,
+): BadgeVariant => itemStatusVariants[status];

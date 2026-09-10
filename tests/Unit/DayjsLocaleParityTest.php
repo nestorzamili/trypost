@@ -23,8 +23,19 @@ test('every locale has its dayjs translations imported', function (Locale $local
 test('every locale starts its week on Monday in dayjs', function (Locale $locale) {
     $key = strtolower($locale->value);
 
-    $line = collect(explode("\n", dayjsConfig()))
-        ->first(fn (string $line) => str_contains($line, 'const weekStartMonday'));
+    $lines = explode("\n", dayjsConfig());
+    $startIndex = collect($lines)
+        ->search(fn (string $line) => str_contains($line, 'const weekStartMonday'));
 
-    expect($line)->toContain("'{$key}'");
+    expect($startIndex)->not->toBeFalse();
+
+    $block = '';
+    for ($i = (int) $startIndex; $i < count($lines); $i++) {
+        $block .= $lines[$i] . "\n";
+        if (str_contains($lines[$i], '];')) {
+            break;
+        }
+    }
+
+    expect($block)->toContain("'{$key}'");
 })->with(Locale::cases());

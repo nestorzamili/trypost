@@ -20,7 +20,9 @@ const props = defineProps<{
 
 const editDialogOpen = ref(false);
 const rotateSecretDialogOpen = ref(false);
-const confirmDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
+const confirmDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
+    null,
+);
 
 const openDelete = () => {
     confirmDeleteModal.value?.open({
@@ -54,7 +56,10 @@ const openDelete = () => {
                 />
             </div>
 
-            <EditWebhookDialog v-model:open="editDialogOpen" :webhook="webhook" />
+            <EditWebhookDialog
+                v-model:open="editDialogOpen"
+                :webhook="webhook"
+            />
             <RotateSecretDialog
                 v-model:open="rotateSecretDialogOpen"
                 :webhook-id="webhook.id"

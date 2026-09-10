@@ -4,26 +4,30 @@ declare(strict_types=1);
 
 namespace App\Ai\Agents;
 
+use App\Ai\Agents\Concerns\AiTimeouts;
 use App\Models\Workspace;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\Temperature;
+use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
 
 #[Temperature(0.25)]
+#[Timeout(AiTimeouts::TEXT_SECONDS)]
 class PostImageRegenerator implements Agent, HasStructuredOutput
 {
     use Promptable;
 
     public function __construct(
         public Workspace $workspace,
+        public ?string $languageCode = null,
     ) {}
 
     public function instructions(): string
     {
         return view('prompts.post_image.regenerator', [
-            'content_language' => $this->workspace->content_language ?: 'en',
+            'content_language' => $this->languageCode ?: ($this->workspace->content_language ?: 'en'),
         ])->render();
     }
 
@@ -39,10 +43,6 @@ class PostImageRegenerator implements Agent, HasStructuredOutput
             'keywords' => $schema->array()
                 ->items($schema->string())
                 ->description('3-10 short keywords for image generation context.')
-                ->required(),
-            'change_mode' => $schema->string()
-                ->enum(['image_only', 'text_only', 'both'])
-                ->description('Set to image_only (change visual only), text_only (change text only), or both (change visual and text).')
                 ->required(),
         ];
     }

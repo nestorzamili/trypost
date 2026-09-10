@@ -7,16 +7,24 @@ import { i18nVue } from 'laravel-vue-i18n';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 
+import Toast from './components/Toast.vue';
 import { initializeDataLayer } from './datalayer';
 import { bootLocale, i18nConfig, syncLocale } from './language';
+import AppShell from './layouts/AppShell.vue';
+import { usesAppShell } from './lib/appShell';
 import { syncContentTypeMediaRules } from './lib/contentTypeMediaRules';
-import { capturePageview, initializePostHog, syncPostHogContext } from './posthog';
+import {
+    capturePageview,
+    initializePostHog,
+    syncPostHogContext,
+} from './posthog';
 import type { Auth } from './types';
 
 const appName = import.meta.env.VITE_APP_NAME || 'TryPost.it';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
+    layout: (name) => (usesAppShell(name) ? AppShell : undefined),
     resolve: (name) =>
         resolvePageComponent(
             `./pages/${name}.vue`,
@@ -59,7 +67,7 @@ createInertiaApp({
             capturePageview();
         });
 
-        createApp({ render: () => h(App, props) })
+        createApp({ render: () => [h(App, props), h(Toast)] })
             .use(i18nVue, i18nConfig(locale))
             .use(plugin)
             .mount(el);

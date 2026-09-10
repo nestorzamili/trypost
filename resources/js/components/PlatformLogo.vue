@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getPlatformLabel, getPlatformTheme } from '@/composables/usePlatformLogo';
+import {
+    getPlatformLabel,
+    getPlatformTheme,
+} from '@/composables/usePlatformLogo';
 
 const props = withDefaults(
     defineProps<{
@@ -43,6 +46,11 @@ const imageClass = computed(
         ]"
         :title="getPlatformLabel(platform)"
     >
-        <img :src="theme.image" :alt="getPlatformLabel(platform)" :class="imageClass" loading="lazy" />
+        <img
+            :src="theme.image"
+            :alt="getPlatformLabel(platform)"
+            :class="imageClass"
+            loading="lazy"
+        />
     </span>
 </template>

@@ -61,6 +61,13 @@ return [
     'close' => 'Sluiten',
     'loading_more' => 'Meer laden...',
 
+    'pagination' => [
+        'label' => 'Paginering',
+        'previous' => 'Vorige pagina',
+        'next' => 'Volgende pagina',
+        'go_to_page' => 'Ga naar pagina :page',
+    ],
+
     'actions' => [
         'copy' => 'Kopiëren',
         'copied' => 'Gekopieerd',

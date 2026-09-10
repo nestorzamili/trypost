@@ -25,3 +25,5 @@ From the provided markdown content of the homepage, produce:
 7. **text_color** — the dominant body text color as a hex string starting with `#`, lowercase, 6 digits (e.g. `#0f172a`). Return an empty string if you can't confidently identify it.
 
 Be accurate and specific to what the page actually shows. Do not invent features or claims that aren't on the page. For colors, prefer values visible in the markup/CSS; never guess.
+
+For `brand_guidelines`: infer at most a few concrete do/don't rules from the site (tone, terms to use or avoid, capitalization/formatting conventions, taglines), written in the detected content language. If nothing concrete stands out, return an empty string — do not invent generic advice.

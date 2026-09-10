@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Ai\Agents;
 
+use App\Ai\Agents\Concerns\AiTimeouts;
 use App\Ai\Agents\Concerns\ResolvesPlatformCopyBudget;
 use App\Ai\Templates\AiContentTemplate;
 use App\Ai\Templates\TemplateContext;
 use App\Enums\Ai\GeneratorFormat;
 use App\Models\Workspace;
+use App\Support\ResolvedBrand;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Attributes\Temperature;
+use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
 
 #[Temperature(0.7)]
+#[Timeout(AiTimeouts::TEXT_SECONDS)]
 class PostContentGenerator implements Agent, HasStructuredOutput
 {
     use Promptable;
@@ -30,6 +34,8 @@ class PostContentGenerator implements Agent, HasStructuredOutput
         public bool $applyBrandVoice = true,
         public ?AiContentTemplate $template = null,
         public ?TemplateContext $templateContext = null,
+        public bool $applyBrandVisuals = true,
+        public ?ResolvedBrand $brand = null,
     ) {}
 
     public function instructions(): string
@@ -45,11 +51,28 @@ class PostContentGenerator implements Agent, HasStructuredOutput
             ? $this->template->promptView($this->templateContext)
             : 'prompts.post_content.generator';
 
+        $brand = $this->brand
+            ?? $this->templateContext?->brand
+            ?? $this->workspace->resolvedBrand($this->templateContext?->languageCode);
+        $includeVisuals = ($this->templateContext?->applyBrandVisuals ?? $this->applyBrandVisuals)
+            && $brand->hasVariant;
+
         return view($view, [
             'brand_name' => $this->workspace->name ?? '',
-            'brand_description' => $this->applyBrandVoice ? ($this->workspace->brand_description ?? '') : '',
-            'brand_voice_traits' => $this->applyBrandVoice ? ($this->workspace->brand_voice_traits ?? []) : [],
-            'content_language' => $this->workspace->content_language,
+            'brand_description' => $this->applyBrandVoice ? $brand->brandDescription : '',
+            'brand_guidelines' => $this->applyBrandVoice ? $brand->brandGuidelines : '',
+            'brand_voice_traits' => $this->applyBrandVoice ? $brand->brandVoiceTraits : [],
+            'visual_notes' => $includeVisuals ? $brand->visualNotes : '',
+            'brand_typography' => $includeVisuals ? array_filter([
+                'headline' => $brand->headlineFont,
+                'body' => $brand->bodyFont,
+                'label' => $brand->labelFont,
+                'accent' => $brand->accentFont,
+            ]) : [],
+            'include_description' => $this->applyBrandVoice,
+            'include_voice' => $this->applyBrandVoice,
+            'include_visuals' => $includeVisuals,
+            'content_language' => $brand->languageCode,
             'current_content' => $this->currentContent,
             'format' => $this->format->value,
             'slide_count' => $this->slideCount,

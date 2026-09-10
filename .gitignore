@@ -8,6 +8,7 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/inertia-devtools
 /resources/js/actions
 /resources/js/routes
 /resources/js/wayfinder
@@ -30,5 +31,13 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
-/docs/
+/docs/*
+!/docs/
+!/docs/deployment.md
 /.superpowers/
+
+# WorkBuddy AI working notes (local only)
+/.workbuddy-ai/
+
+# Kiro Crew agent environment (local only)
+/.kiro/

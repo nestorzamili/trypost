@@ -22,12 +22,13 @@ final class ChunkedAssetReceiver
         int $rangeEnd,
         int $totalSize,
         string $attemptId,
+        string $collection = 'assets',
     ): ChunkReceipt {
-        $identifier = md5("{$user->id}{$fileName}{$totalSize}{$attemptId}");
+        $identifier = md5("{$user->id}{$fileName}{$totalSize}{$attemptId}{$collection}");
 
         return $this->cloud->shouldUseMultipart($fileName)
-            ? $this->receiveViaMultipart($workspace, $identifier, $fileName, $chunk, $rangeStart, $rangeEnd, $totalSize)
-            : $this->receiveViaLocalAssemble($workspace, $identifier, $fileName, $chunk, $rangeStart, $rangeEnd, $totalSize);
+            ? $this->receiveViaMultipart($workspace, $identifier, $fileName, $chunk, $rangeStart, $rangeEnd, $totalSize, $collection)
+            : $this->receiveViaLocalAssemble($workspace, $identifier, $fileName, $chunk, $rangeStart, $rangeEnd, $totalSize, $collection);
     }
 
     private function receiveViaMultipart(
@@ -38,6 +39,7 @@ final class ChunkedAssetReceiver
         int $rangeStart,
         int $rangeEnd,
         int $totalSize,
+        string $collection,
     ): ChunkReceipt {
         $result = $this->cloud->receiveChunk(
             $identifier,
@@ -60,7 +62,7 @@ final class ChunkedAssetReceiver
                 $fileName,
                 (string) data_get($result, 'mime_type'),
                 (int) data_get($result, 'size'),
-                'assets',
+                $collection,
             );
         } catch (Throwable $exception) {
             Storage::delete($path);
@@ -79,6 +81,7 @@ final class ChunkedAssetReceiver
         int $rangeStart,
         int $rangeEnd,
         int $totalSize,
+        string $collection,
     ): ChunkReceipt {
         $tempFile = storage_path("app/private/chunks/{$identifier}");
 
@@ -93,7 +96,7 @@ final class ChunkedAssetReceiver
         }
 
         try {
-            $media = $workspace->addMediaFromPath($tempFile, $fileName, 'assets');
+            $media = $workspace->addMediaFromPath($tempFile, $fileName, $collection);
         } finally {
             @unlink($tempFile);
         }

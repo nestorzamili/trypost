@@ -9,7 +9,9 @@ import {
     type WebhookLogBroadcast,
 } from '@/types/webhook';
 
-const liveFields = (log: WebhookLogBroadcast): Pick<
+const liveFields = (
+    log: WebhookLogBroadcast,
+): Pick<
     WebhookLogBroadcast,
     'response_status' | 'delivered_at' | 'failed_at' | 'attempts'
 > => ({
@@ -22,7 +24,10 @@ const liveFields = (log: WebhookLogBroadcast): Pick<
 const compareNewestFirst = (left: WebhookLog, right: WebhookLog): number =>
     dayjs(right.created_at).valueOf() - dayjs(left.created_at).valueOf();
 
-const mergeIncomingLog = (incoming: WebhookLog, local?: WebhookLog): WebhookLog => {
+const mergeIncomingLog = (
+    incoming: WebhookLog,
+    local?: WebhookLog,
+): WebhookLog => {
     if (!local) {
         return incoming;
     }
@@ -37,9 +42,9 @@ const mergeIncomingLog = (incoming: WebhookLog, local?: WebhookLog): WebhookLog 
     }
 
     if (
-        (localDelivered && !incomingDelivered)
-        || local.attempts > incoming.attempts
-        || (localFailed && !incomingFailed && !incomingDelivered)
+        (localDelivered && !incomingDelivered) ||
+        local.attempts > incoming.attempts ||
+        (localFailed && !incomingFailed && !incomingDelivered)
     ) {
         return { ...incoming, ...liveFields(local) };
     }
@@ -47,10 +52,15 @@ const mergeIncomingLog = (incoming: WebhookLog, local?: WebhookLog): WebhookLog 
     return incoming;
 };
 
-const syncLogs = (incoming: WebhookLog[], local: WebhookLog[]): WebhookLog[] => {
+const syncLogs = (
+    incoming: WebhookLog[],
+    local: WebhookLog[],
+): WebhookLog[] => {
     const localById = new Map(local.map((log) => [log.id, log]));
     const incomingIds = new Set(incoming.map((log) => log.id));
-    const merged = incoming.map((log) => mergeIncomingLog(log, localById.get(log.id)));
+    const merged = incoming.map((log) =>
+        mergeIncomingLog(log, localById.get(log.id)),
+    );
     const echoOnly = local.filter((log) => !incomingIds.has(log.id));
 
     return [...echoOnly, ...merged].sort(compareNewestFirst);

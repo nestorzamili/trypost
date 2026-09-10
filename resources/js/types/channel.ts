@@ -22,6 +22,11 @@ export interface ChannelTikTokCreatorInfo {
     max_video_post_duration_sec: number | null;
 }
 
+/**
+ * One selectable publishing channel for the post editor's channels tab. `id`
+ * is the selection/update key (a post_platform id); `socialAccount` is what
+ * the per-platform Settings components consume.
+ */
 export interface Channel {
     id: string;
     platform: string;

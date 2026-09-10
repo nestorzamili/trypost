@@ -16,14 +16,21 @@ services:
             TRYPOST_DOCKER_BOOTSTRAP: '1'
             UID: ${UID:-1000}
             GID: ${GID:-1000}
+            # Bind mounts on Windows/macOS don't propagate file-watch events
+            # into the container — without polling, vite HMR silently stops
+            # noticing edits (see server.watch in vite.config.ts).
+            VITE_WATCH_POLLING: '1'
             # Real env vars take precedence over .env.testing (which pins
             # DB_HOST=127.0.0.1, DB_USERNAME=root). Without these, the test
             # suite can't see Postgres / Redis from inside the container.
             DB_HOST: pgsql
-            DB_USERNAME: postgres
+            DB_DATABASE: ${DB_DATABASE:-trypost}
+            DB_USERNAME: ${DB_USERNAME:-postgres}
+            DB_PASSWORD: ${DB_PASSWORD:-password}
             REDIS_HOST: redis
         volumes:
             - .:/var/www/html
+            - ./docker/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
             - app-vendor:/var/www/html/vendor
             - app-node-modules:/var/www/html/node_modules
         extra_hosts:

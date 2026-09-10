@@ -48,7 +48,9 @@ const triggerLabel = computed(() => {
 <template>
     <div class="space-y-4">
         <div class="grid gap-2">
-            <Label :for="props.endpointId">{{ $t('webhooks.create.endpoint') }}</Label>
+            <Label :for="props.endpointId">{{
+                $t('webhooks.create.endpoint')
+            }}</Label>
             <Input
                 :id="props.endpointId"
                 v-model="endpoint"
@@ -70,13 +72,19 @@ const triggerLabel = computed(() => {
                             type="button"
                         >
                             {{ triggerLabel }}
-                            <IconChevronDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            <IconChevronDown
+                                class="ml-2 h-4 w-4 shrink-0 opacity-50"
+                            />
                         </Button>
                     </ComboboxTrigger>
                 </ComboboxAnchor>
                 <ComboboxList class="w-full">
-                    <ComboboxInput :placeholder="trans('webhooks.create.search_events')" />
-                    <ComboboxEmpty>{{ $t('webhooks.create.no_events') }}</ComboboxEmpty>
+                    <ComboboxInput
+                        :placeholder="trans('webhooks.create.search_events')"
+                    />
+                    <ComboboxEmpty>{{
+                        $t('webhooks.create.no_events')
+                    }}</ComboboxEmpty>
                     <ComboboxGroup
                         v-for="group in webhookEventGroups"
                         :key="group.labelKey"
@@ -88,7 +96,9 @@ const triggerLabel = computed(() => {
                             :value="event"
                             :text-value="`${webhookEventLabel(event)} ${event}`"
                         >
-                            <span class="min-w-0 flex-1 truncate">{{ webhookEventLabel(event) }}</span>
+                            <span class="min-w-0 flex-1 truncate">{{
+                                webhookEventLabel(event)
+                            }}</span>
                             <ComboboxItemIndicator>
                                 <IconCheck class="ml-auto h-4 w-4" />
                             </ComboboxItemIndicator>

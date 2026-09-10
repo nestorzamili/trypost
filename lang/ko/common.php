@@ -61,6 +61,13 @@ return [
     'close' => '닫기',
     'loading_more' => '더 불러오는 중...',
 
+    'pagination' => [
+        'label' => '페이지 매김',
+        'previous' => '이전 페이지',
+        'next' => '다음 페이지',
+        'go_to_page' => ':page 페이지로 이동',
+    ],
+
     'actions' => [
         'copy' => '복사',
         'copied' => '복사됨',

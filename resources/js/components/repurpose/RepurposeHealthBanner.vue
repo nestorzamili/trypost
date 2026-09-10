@@ -4,7 +4,11 @@ import { computed } from 'vue';
 
 import type { ChannelAccount } from '@/types/channel';
 import type { Repurpose } from '@/types/repurpose';
-import { RepurposeHealth, type RepurposeHealthValue, RepurposeStatus } from '@/types/repurpose-status';
+import {
+    RepurposeHealth,
+    type RepurposeHealthValue,
+    RepurposeStatus,
+} from '@/types/repurpose-status';
 import { SocialAccountStatus } from '@/types/social-account-status';
 
 const props = defineProps<{
@@ -13,7 +17,10 @@ const props = defineProps<{
 }>();
 
 const state = computed<RepurposeHealthValue | null>(() => {
-    if (props.repurpose.status !== RepurposeStatus.Paused || props.repurpose.paused_reason === null) {
+    if (
+        props.repurpose.status !== RepurposeStatus.Paused ||
+        props.repurpose.paused_reason === null
+    ) {
         return null;
     }
 
@@ -21,19 +28,29 @@ const state = computed<RepurposeHealthValue | null>(() => {
         return RepurposeHealth.SourceMissing;
     }
 
-    const source = props.accounts.find((account) => account.id === props.repurpose.source_social_account_id);
+    const source = props.accounts.find(
+        (account) => account.id === props.repurpose.source_social_account_id,
+    );
 
-    if (!source || !source.is_active || source.status !== SocialAccountStatus.Connected) {
+    if (
+        !source ||
+        !source.is_active ||
+        source.status !== SocialAccountStatus.Connected
+    ) {
         return RepurposeHealth.SourceUnusable;
     }
 
     const usable = props.repurpose.destinations.filter((destination) => {
-        const account = props.accounts.find((item) => item.id === destination.social_account_id);
+        const account = props.accounts.find(
+            (item) => item.id === destination.social_account_id,
+        );
 
         return account !== undefined && account.is_active;
     });
 
-    return usable.length === 0 ? RepurposeHealth.NoDestinations : RepurposeHealth.Ready;
+    return usable.length === 0
+        ? RepurposeHealth.NoDestinations
+        : RepurposeHealth.Ready;
 });
 </script>
 
@@ -48,7 +65,14 @@ const state = computed<RepurposeHealthValue | null>(() => {
                 : 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400',
         ]"
     >
-        <component :is="state === RepurposeHealth.Ready ? IconRefresh : IconAlertTriangle" class="mt-0.5 size-4 shrink-0" />
+        <component
+            :is="
+                state === RepurposeHealth.Ready
+                    ? IconRefresh
+                    : IconAlertTriangle
+            "
+            class="mt-0.5 size-4 shrink-0"
+        />
 
         <p class="leading-relaxed">
             {{ $t(`repurposes.health.${state}`) }}

@@ -61,6 +61,13 @@ return [
     'close' => '关闭',
     'loading_more' => '加载更多…',
 
+    'pagination' => [
+        'label' => '分页',
+        'previous' => '上一页',
+        'next' => '下一页',
+        'go_to_page' => '跳转到第 :page 页',
+    ],
+
     'actions' => [
         'copy' => '复制',
         'copied' => '已复制',

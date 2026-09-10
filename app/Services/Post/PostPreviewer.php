@@ -20,6 +20,9 @@ class PostPreviewer
     public function __construct(private readonly ContentSanitizer $sanitizer) {}
 
     /**
+     * @param  bool  $onlyEnabled  false includes disabled platforms too, so a
+     *                             read-only preview can show every connected
+     *                             platform rather than only publish targets.
      * @return array{
      *     post_id: string,
      *     original_content: string,
@@ -35,7 +38,7 @@ class PostPreviewer
      *     }>
      * }
      */
-    public function forPost(Post $post): array
+    public function forPost(Post $post, bool $onlyEnabled = true): array
     {
         $original = (string) $post->content;
 
@@ -43,17 +46,20 @@ class PostPreviewer
             'post_id' => $post->id,
             'original_content' => $original,
             'original_length' => mb_strlen($original),
-            'platforms' => $this->platformPreviews($post, $original)->all(),
+            'platforms' => $this->platformPreviews($post, $original, $onlyEnabled)->all(),
         ];
     }
 
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function platformPreviews(Post $post, string $original): Collection
+    private function platformPreviews(Post $post, string $original, bool $onlyEnabled = true): Collection
     {
-        return $post->postPlatforms
-            ->where('enabled', true)
+        $platforms = $onlyEnabled
+            ? $post->postPlatforms->where('enabled', true)
+            : $post->postPlatforms;
+
+        return $platforms
             ->values()
             ->map(function (PostPlatform $pp) use ($original) {
                 $platform = $pp->socialAccount?->platform ?? $pp->platform;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { IconCopy } from '@tabler/icons-vue';
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import NetworkConnectGrid, {
     type AvailablePlatform,
@@ -15,7 +15,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { copyToClipboard } from '@/lib/utils';
 import { complete } from '@/routes/app/onboarding';
 import { skip as skipMcpRoute } from '@/routes/app/onboarding/mcp';
-import { create as createPost } from '@/routes/app/posts';
+import { store as storePost } from '@/routes/app/posts';
 import { SocialAccountStatus } from '@/types/social-account-status';
 
 interface OnboardingStatus {
@@ -43,6 +43,22 @@ const page = usePage();
 const firstName = computed(() => page.props.auth.user.first_name);
 const skipMcpForm = useForm({});
 const completeForm = useForm({});
+const creatingPost = ref(false);
+
+const createFirstPost = () => {
+    if (creatingPost.value) return;
+
+    creatingPost.value = true;
+    router.post(
+        storePost.url(),
+        {},
+        {
+            onFinish: () => {
+                creatingPost.value = false;
+            },
+        },
+    );
+};
 const reloadOnly = ['status', 'accounts', 'onboardingProgress'];
 let completeAttempts = 0;
 const maxCompleteAttempts = 3;
@@ -218,13 +234,14 @@ const isStepSkipped = (step: string): boolean =>
                         >
                             {{ $t('onboarding.first_post.or') }}
                         </span>
-                        <Button v-if="canCreatePost" as-child variant="outline">
-                            <Link
-                                :href="createPost.url()"
-                                data-testid="create-first-post"
-                            >
-                                {{ $t('onboarding.first_post.create_button') }}
-                            </Link>
+                        <Button
+                            v-if="canCreatePost"
+                            variant="outline"
+                            data-testid="create-first-post"
+                            :loading="creatingPost"
+                            @click="createFirstPost"
+                        >
+                            {{ $t('onboarding.first_post.create_button') }}
                         </Button>
                     </div>
                 </OnboardingStepCard>

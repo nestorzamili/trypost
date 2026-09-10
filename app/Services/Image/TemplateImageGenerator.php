@@ -9,6 +9,7 @@ use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Services\Ai\AiImageClient;
 use App\Services\Ai\RecordAiUsage;
+use App\Support\ResolvedBrand;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -16,6 +17,7 @@ use Intervention\Image\Encoders\WebpEncoder;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 use Intervention\Image\Typography\FontFactory;
+use Laravel\Ai\Files\Image;
 
 class TemplateImageGenerator
 {
@@ -29,10 +31,15 @@ class TemplateImageGenerator
     /** Active canvas height. Set per render call so templates can scale. */
     private int $height = self::DEFAULT_HEIGHT;
 
+    private FontResolver $fontResolver;
+
     public function __construct(
         private BrandColorMapper $colorMapper,
         private AiImageClient $aiImage,
-    ) {}
+        ?FontResolver $fontResolver = null,
+    ) {
+        $this->fontResolver = $fontResolver ?? new FontResolver;
+    }
 
     /**
      * Render a slide and return the storage path plus the source meta needed
@@ -52,6 +59,9 @@ class TemplateImageGenerator
         int $height = self::DEFAULT_HEIGHT,
         ?string $backgroundPath = null,
         bool $applyBrandVisuals = true,
+        ?ResolvedBrand $brand = null,
+        array $referenceImages = [],
+        array $referenceKinds = [],
     ): ?array {
         $this->width = $width;
         $this->height = $height;
@@ -63,15 +73,16 @@ class TemplateImageGenerator
             is_string($rawStyle) => ImageStyle::tryFrom($rawStyle) ?? ImageStyle::DEFAULT,
             default => ImageStyle::DEFAULT,
         };
-        $language = $workspace->content_language;
+        $brand = $brand ?? $workspace->resolvedBrand();
+        $language = $brand->languageCode;
 
-        // When brand visuals are off (e.g. faithful curation), the AI background
-        // is generated without brand colours or identity — neutral imagery driven
-        // only by the post's own keywords.
-        $brandColor = $applyBrandVisuals ? $workspace->brand_color : null;
-        $backgroundColor = $applyBrandVisuals ? $workspace->background_color : null;
-        $textColor = $applyBrandVisuals ? $workspace->text_color : null;
-        $brandDescription = $applyBrandVisuals ? $workspace->brand_description : null;
+        $brandColor = $applyBrandVisuals ? ($brand->brandColor ?: null) : null;
+        $backgroundColor = $applyBrandVisuals ? ($brand->backgroundColor ?: null) : null;
+        $textColor = $applyBrandVisuals ? ($brand->textColor ?: null) : null;
+        $brandDescription = $applyBrandVisuals ? ($brand->brandDescription ?: null) : null;
+        $extendedPalette = $applyBrandVisuals && $brand->hasVariant ? $brand->colors : [];
+        $visualNotes = $applyBrandVisuals ? ($brand->visualNotes ?: null) : null;
+        $brandGuidelines = $applyBrandVisuals ? ($brand->brandGuidelines ?: null) : null;
 
         $generatedNewBackground = false;
         $resolvedBackgroundPath = null;
@@ -85,6 +96,17 @@ class TemplateImageGenerator
         }
 
         if (! is_string($imageData) || $imageData === '') {
+            $resolvedReferences = $referenceImages;
+            $resolvedReferenceKinds = $referenceKinds;
+
+            if ($resolvedReferences === []) {
+                $refMedia = $workspace->getMedia('brand_references')->get();
+                $resolvedReferences = $refMedia->pluck('path')->all();
+                $resolvedReferenceKinds = $refMedia
+                    ->map(fn ($item) => (string) (data_get($item->meta, 'kind') ?? 'other'))
+                    ->all();
+            }
+
             $generated = $this->aiImage->generate(
                 keywords: $imageKeywords,
                 style: $imageStyle,
@@ -94,6 +116,17 @@ class TemplateImageGenerator
                 backgroundColor: $backgroundColor,
                 textColor: $textColor,
                 brandDescription: $brandDescription,
+                extendedPalette: $extendedPalette,
+                visualNotes: $visualNotes,
+                brandGuidelines: $brandGuidelines,
+                typography: [
+                    'headline' => $brand->headlineFont,
+                    'body' => $brand->bodyFont,
+                    'label' => $brand->labelFont,
+                    'accent' => $brand->accentFont,
+                ],
+                referenceImages: $resolvedReferences,
+                referenceKinds: $resolvedReferenceKinds,
             );
 
             if ($generated === null) {
@@ -110,8 +143,8 @@ class TemplateImageGenerator
 
         $manager = new ImageManager(Driver::class);
 
-        $canvas = $this->renderTemplateA($manager, $imageData, $title, $body);
-        $canvas = $this->renderFooter($canvas, $socialAccount);
+        $canvas = $this->renderTemplateA($manager, $imageData, $title, $body, $brand);
+        $canvas = $this->renderFooter($canvas, $socialAccount, $brand);
 
         $filename = 'ai-images/'.uniqid('slide_', true).'.webp';
         Storage::put($filename, (string) $canvas->encode(new WebpEncoder(quality: 85)));
@@ -125,6 +158,10 @@ class TemplateImageGenerator
                     'image_style' => $imageStyle->value,
                     'width' => $this->width,
                     'height' => $this->height,
+                    'language' => $brand->languageCode,
+                    'brand_variant_id' => $brand->variantId,
+                    'brand_variant_language' => $brand->hasVariant ? $brand->languageCode : null,
+                    'has_brand_variant' => $brand->hasVariant,
                 ],
             );
         }
@@ -135,6 +172,10 @@ class TemplateImageGenerator
             metadata: [
                 'width' => $this->width,
                 'height' => $this->height,
+                'language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'brand_variant_language' => $brand->languageCode,
+                'has_brand_variant' => $brand->hasVariant,
             ],
         );
 
@@ -153,6 +194,10 @@ class TemplateImageGenerator
                 'background_color' => $backgroundColor,
                 'text_color' => $textColor,
                 'background_path' => $resolvedBackgroundPath,
+                'brand_variant_id' => $applyBrandVisuals && $brand->hasVariant ? $brand->variantId : null,
+                'brand_variant_language' => $applyBrandVisuals && $brand->hasVariant ? $brand->languageCode : null,
+                'has_brand_variant' => $applyBrandVisuals && $brand->hasVariant,
+                'brand_snapshot' => $applyBrandVisuals && $brand->hasVariant ? $brand->toSnapshot() : null,
             ],
         ];
     }
@@ -185,7 +230,7 @@ class TemplateImageGenerator
         return 'squarish';
     }
 
-    private function renderTemplateA(ImageManager $manager, string $imageData, string $title, string $body): ImageInterface
+    private function renderTemplateA(ImageManager $manager, string $imageData, string $title, string $body, ?ResolvedBrand $brand = null): ImageInterface
     {
         // Cover-fit Unsplash image to active canvas size.
         $image = $manager->decodeBinary($imageData)->cover($this->width, $this->height);
@@ -193,8 +238,8 @@ class TemplateImageGenerator
         // Smooth gradient mask: covers full image height, peaks at 0.9 alpha (linear).
         $this->applyBottomGradient($image, 1.0, 0.9, 1.0);
 
-        $fontBold = $this->fontPath('Inter-Bold.ttf');
-        $fontMedium = $this->fontPath('Inter-Medium.ttf');
+        $fontBold = $this->fontResolver->headlineFont($brand?->headlineFont, $brand?->languageCode, $title);
+        $fontMedium = $this->fontResolver->bodyFont($brand?->bodyFont, $brand?->languageCode, $body);
 
         // Layout (bottom-up): footer area → body → title. All text rendered via raw GD
         // for pixel-precise positioning. Same wrap+measure helper used for layout math.
@@ -231,7 +276,8 @@ class TemplateImageGenerator
 
     /**
      * Wrap text into lines that fit within $maxWidth using the given font.
-     * Respects explicit \n line breaks. Returns an array of line strings.
+     * Respects explicit \n line breaks and supports both space-delimited (Latin)
+     * and character-level (CJK) line breaking. Returns an array of line strings.
      *
      * @return array<int, string>
      */
@@ -239,30 +285,83 @@ class TemplateImageGenerator
     {
         $lines = [];
         foreach (explode("\n", $text) as $paragraph) {
-            $words = preg_split('/\s+/', trim($paragraph)) ?: [];
-            if (empty($words)) {
+            $trimmed = trim($paragraph);
+            if ($trimmed === '') {
                 $lines[] = '';
 
                 continue;
             }
-            $current = '';
-            foreach ($words as $word) {
-                $candidate = $current === '' ? $word : $current.' '.$word;
+
+            $tokens = $this->tokenizeForWrapping($trimmed);
+            $line = '';
+
+            foreach ($tokens as $token) {
+                $tokenText = $token['text'];
+                $isCjk = $token['is_cjk'];
+
+                if ($line === '') {
+                    $candidate = $tokenText;
+                } else {
+                    $candidate = ($isCjk || preg_match('/[\x{4E00}-\x{9FFF}\x{3400}-\x{4DBF}\x{20000}-\x{2A6DF}\x{3040}-\x{309F}\x{30A0}-\x{30FF}\x{AC00}-\x{D7AF}\x{3000}-\x{303F}\x{FF00}-\x{FFEF}]$/u', $line))
+                        ? $line.$tokenText
+                        : $line.' '.$tokenText;
+                }
+
                 $box = imagettfbbox($fontSize, 0, $fontPath, $candidate);
                 $width = abs($box[2] - $box[0]);
-                if ($width > $maxWidth && $current !== '') {
-                    $lines[] = $current;
-                    $current = $word;
+
+                if ($width > $maxWidth && $line !== '') {
+                    $lines[] = $line;
+                    $line = $tokenText;
                 } else {
-                    $current = $candidate;
+                    $line = $candidate;
                 }
             }
-            if ($current !== '') {
-                $lines[] = $current;
+
+            if ($line !== '') {
+                $lines[] = $line;
             }
         }
 
         return $lines;
+    }
+
+    /**
+     * Tokenize text into words (for space-delimited scripts) and single characters (for CJK scripts).
+     *
+     * @return array<int, array{text: string, is_cjk: bool}>
+     */
+    private function tokenizeForWrapping(string $text): array
+    {
+        $tokens = [];
+        $chars = mb_str_split($text);
+        $currentWord = '';
+
+        foreach ($chars as $char) {
+            $isSpace = (bool) preg_match('/\s/u', $char);
+            $isCjk = (bool) preg_match('/[\x{4E00}-\x{9FFF}\x{3400}-\x{4DBF}\x{20000}-\x{2A6DF}\x{3040}-\x{309F}\x{30A0}-\x{30FF}\x{AC00}-\x{D7AF}\x{3000}-\x{303F}\x{FF00}-\x{FFEF}]/u', $char);
+
+            if ($isSpace) {
+                if ($currentWord !== '') {
+                    $tokens[] = ['text' => $currentWord, 'is_cjk' => false];
+                    $currentWord = '';
+                }
+            } elseif ($isCjk) {
+                if ($currentWord !== '') {
+                    $tokens[] = ['text' => $currentWord, 'is_cjk' => false];
+                    $currentWord = '';
+                }
+                $tokens[] = ['text' => $char, 'is_cjk' => true];
+            } else {
+                $currentWord .= $char;
+            }
+        }
+
+        if ($currentWord !== '') {
+            $tokens[] = ['text' => $currentWord, 'is_cjk' => false];
+        }
+
+        return $tokens;
     }
 
     /**
@@ -361,9 +460,9 @@ class TemplateImageGenerator
         }
     }
 
-    private function renderFooter(ImageInterface $canvas, SocialAccount $socialAccount): ImageInterface
+    private function renderFooter(ImageInterface $canvas, SocialAccount $socialAccount, ?ResolvedBrand $brand = null): ImageInterface
     {
-        // Footer uses Inter Light (300) in slate-grey — always legible on top
+        // Footer uses Light font in slate-grey — always legible on top
         // of the bottom dark gradient applied by Template A.
         $footerColor = '#9ca3af';
 
@@ -380,7 +479,7 @@ class TemplateImageGenerator
 
         $textX = $avatarX + $avatarSize + 16;
         // intervention/image's `align('left', 'top')` positions text at its EM-box
-        // top. Inter's visual glyph midpoint sits roughly at top + size * 0.42, so
+        // top. Visual glyph midpoint sits roughly at top + size * 0.42, so
         // we shift textY up by that amount to land its center on rowCenterY.
         $textY = $rowCenterY - (int) round(24 * 0.42);
 
@@ -390,7 +489,7 @@ class TemplateImageGenerator
             $this->drawCircularAvatar($canvas, $avatarBinary, $avatarX, $avatarY, $avatarSize);
         }
 
-        $fontLight = $this->fontPath('Inter-Light.ttf');
+        $fontLight = $this->fontResolver->lightFont($brand?->labelFont, $brand?->languageCode, $displayName.' '.$username);
         if (! $fontLight || ! file_exists($fontLight)) {
             return $canvas;
         }
@@ -566,14 +665,22 @@ class TemplateImageGenerator
      * @param  array<int, string>|null  $imageKeywords
      * @return array{path: string, source_meta: array<string, mixed>}|null
      */
-    public function renderTweetCard(Workspace $workspace, SocialAccount $socialAccount, string $tweetText, ?array $imageKeywords = null): ?array
-    {
+    public function renderTweetCard(
+        Workspace $workspace,
+        SocialAccount $socialAccount,
+        string $tweetText,
+        ?array $imageKeywords = null,
+        ?ResolvedBrand $brand = null,
+        array $referenceImages = [],
+        array $referenceKinds = [],
+    ): ?array {
         $this->width = self::DEFAULT_WIDTH;
         $this->height = self::DEFAULT_HEIGHT;
 
         $manager = new ImageManager(Driver::class);
+        $brand = $brand ?? $workspace->resolvedBrand();
 
-        $brandColor = $workspace->brand_color ?? '#1d9bf0';
+        $brandColor = $brand->brandColor ?: '#1d9bf0';
         [$pr, $pg, $pb] = $this->hexToRgb($brandColor);
 
         $canvas = $manager->createImage($this->width, $this->height);
@@ -585,14 +692,14 @@ class TemplateImageGenerator
         $useImageBackground = $imageKeywords !== null && $imageKeywords !== [];
 
         if ($useImageBackground) {
-            $canvas = $this->applyTweetCardImageBackground($manager, $canvas, $core, $workspace, $imageKeywords);
+            $canvas = $this->applyTweetCardImageBackground($manager, $canvas, $core, $workspace, $imageKeywords, $brand, $referenceImages, $referenceKinds);
             $core = $canvas->core()->native();
         } else {
             $pageBg = imagecolorallocate($core, $pr, $pg, $pb);
             imagefill($core, 0, 0, $pageBg);
         }
 
-        $this->drawTweetCardContent($canvas, $core, $socialAccount, $tweetText);
+        $this->drawTweetCardContent($canvas, $core, $socialAccount, $tweetText, $brand);
 
         $template = $useImageBackground ? 'tweet_card_image' : 'tweet_card';
         $filename = "ai-images/tweet_{$template}_".uniqid('', true).'.webp';
@@ -605,6 +712,10 @@ class TemplateImageGenerator
                 'template' => $template,
                 'width' => $this->width,
                 'height' => $this->height,
+                'language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'brand_variant_language' => $brand->languageCode,
+                'has_brand_variant' => $brand->hasVariant,
             ],
         );
 
@@ -613,6 +724,12 @@ class TemplateImageGenerator
             'tweet_text' => $tweetText,
             'width' => $this->width,
             'height' => $this->height,
+            'language' => $brand->languageCode,
+            'brand_variant_id' => $brand->variantId,
+            'brand_variant_language' => $brand->languageCode,
+            'has_brand_variant' => $brand->hasVariant,
+            'brand_snapshot' => $brand->toSnapshot(),
+            'brand_color' => $brandColor,
         ];
 
         if ($useImageBackground) {
@@ -630,6 +747,7 @@ class TemplateImageGenerator
      * Falls back to a solid brand-color fill when the AI client returns null.
      *
      * @param  array<int, string>  $imageKeywords
+     * @param  array<int, string|Image>  $referenceImages
      */
     private function applyTweetCardImageBackground(
         ImageManager $manager,
@@ -637,6 +755,9 @@ class TemplateImageGenerator
         mixed $core,
         Workspace $workspace,
         array $imageKeywords,
+        ResolvedBrand $brand,
+        array $referenceImages = [],
+        array $referenceKinds = [],
     ): ImageInterface {
         $rawStyle = $workspace->image_style;
         $imageStyle = match (true) {
@@ -645,19 +766,41 @@ class TemplateImageGenerator
             default => ImageStyle::DEFAULT,
         };
 
+        $resolvedReferences = $referenceImages;
+        $resolvedReferenceKinds = $referenceKinds;
+
+        if ($resolvedReferences === []) {
+            $refMedia = $workspace->getMedia('brand_references')->get();
+            $resolvedReferences = $refMedia->pluck('path')->all();
+            $resolvedReferenceKinds = $refMedia
+                ->map(fn ($item) => (string) (data_get($item->meta, 'kind') ?? 'other'))
+                ->all();
+        }
+
         $generated = $this->aiImage->generate(
             keywords: $imageKeywords,
             style: $imageStyle,
             orientation: 'portrait',
-            language: $workspace->content_language,
-            brandColor: $workspace->brand_color,
-            backgroundColor: $workspace->background_color,
-            textColor: $workspace->text_color,
-            brandDescription: $workspace->brand_description,
+            language: $brand->languageCode,
+            brandColor: $brand->brandColor,
+            backgroundColor: $brand->backgroundColor,
+            textColor: $brand->textColor,
+            brandDescription: $brand->brandDescription,
+            extendedPalette: $brand->hasVariant ? $brand->colors : [],
+            visualNotes: $brand->visualNotes,
+            brandGuidelines: $brand->brandGuidelines,
+            typography: [
+                'headline' => $brand->headlineFont,
+                'body' => $brand->bodyFont,
+                'label' => $brand->labelFont,
+                'accent' => $brand->accentFont,
+            ],
+            referenceImages: $resolvedReferences,
+            referenceKinds: $resolvedReferenceKinds,
         );
 
         if ($generated === null) {
-            $brandColor = $workspace->brand_color ?? '#1d9bf0';
+            $brandColor = $brand->brandColor ?: '#1d9bf0';
             [$pr, $pg, $pb] = $this->hexToRgb($brandColor);
             $pageBg = imagecolorallocate($core, $pr, $pg, $pb);
             imagefill($core, 0, 0, $pageBg);
@@ -673,6 +816,9 @@ class TemplateImageGenerator
                 'image_style' => $imageStyle->value,
                 'width' => $this->width,
                 'height' => $this->height,
+                'language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'has_brand_variant' => $brand->hasVariant,
             ],
         );
 
@@ -701,16 +847,16 @@ class TemplateImageGenerator
      * body text) onto the given canvas / GD core. Shared by the solid-color and
      * image-background render paths.
      */
-    private function drawTweetCardContent(ImageInterface $canvas, mixed $core, SocialAccount $socialAccount, string $tweetText): void
+    private function drawTweetCardContent(ImageInterface $canvas, mixed $core, SocialAccount $socialAccount, string $tweetText, ?ResolvedBrand $brand = null): void
     {
         $cardPadding = 64;
         $cardX = 72;
         $cardW = $this->width - 2 * $cardX;
         $cardRadius = 24;
 
-        $fontBold = $this->fontPath('Inter-Bold.ttf');
-        $fontMedium = $this->fontPath('Inter-Medium.ttf');
-        $fontLight = $this->fontPath('Inter-Light.ttf');
+        $fontBold = $this->fontResolver->headlineFont($brand?->headlineFont, $brand?->languageCode, $socialAccount->display_label);
+        $fontMedium = $this->fontResolver->bodyFont($brand?->bodyFont, $brand?->languageCode, $tweetText);
+        $fontLight = $this->fontResolver->lightFont($brand?->labelFont, $brand?->languageCode, $socialAccount->username);
 
         $avatarSize = 72;
         $headerH = $avatarSize + 2 * $cardPadding;
@@ -831,12 +977,5 @@ class TemplateImageGenerator
         imagefilledellipse($core, $x2 - $radius, $y1 + $radius, $radius * 2, $radius * 2, $color);
         imagefilledellipse($core, $x1 + $radius, $y2 - $radius, $radius * 2, $radius * 2, $color);
         imagefilledellipse($core, $x2 - $radius, $y2 - $radius, $radius * 2, $radius * 2, $color);
-    }
-
-    private function fontPath(string $filename): ?string
-    {
-        $path = base_path('resources/fonts/'.$filename);
-
-        return file_exists($path) ? $path : null;
     }
 }

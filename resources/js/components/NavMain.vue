@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 
-import { Badge } from '@/components/ui/badge';
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -29,7 +28,12 @@ const { urlIsActive } = useActiveUrl();
             <SidebarMenuItem v-for="item in items" :key="item.title">
                 <SidebarMenuButton
                     as-child
-                    :is-active="urlIsActive(item.activePattern ?? item.href, { exact: item.exact, exclude: item.excludeActive })"
+                    :is-active="
+                        urlIsActive(item.activePattern ?? item.href, {
+                            exact: item.exact,
+                            exclude: item.excludeActive,
+                        })
+                    "
                     :tooltip="item.title"
                 >
                     <Link :href="item.href" :data-testid="`nav-${item.href}`">
@@ -37,13 +41,6 @@ const { urlIsActive } = useActiveUrl();
                         <span>{{ item.title }}</span>
                     </Link>
                 </SidebarMenuButton>
-                <Badge
-                    v-if="item.badge"
-                    variant="warning"
-                    class="pointer-events-none absolute top-1/2 end-2 -translate-y-1/2 px-1.5 group-data-[collapsible=icon]:hidden"
-                >
-                    {{ item.badge }}
-                </Badge>
             </SidebarMenuItem>
         </SidebarMenu>
     </SidebarGroup>

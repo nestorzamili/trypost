@@ -37,10 +37,13 @@
         "vue-tsc": "^2.2.4"
     },
     "dependencies": {
+        "@ai-sdk/vue": "^4.0.68",
         "@inertiajs/vue3": "^3.6.1",
         "@tabler/icons-vue": "^3.36.1",
         "@tailwindcss/typography": "^0.5.19",
         "@vueuse/core": "^12.8.2",
+        "ai": "^7.0.68",
+        "axios": "^1.13.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "dayjs": "^1.11.19",
@@ -48,6 +51,8 @@
         "highlight.js": "^11.11.1",
         "laravel-vite-plugin": "^3.1.0",
         "laravel-vue-i18n": "^2.8.0",
+        "markdown-it": "^15.0.0",
+        "maska": "^3.2.0",
         "posthog-js": "^1.364.2",
         "reka-ui": "^2.9.10",
         "tailwind-merge": "^3.2.0",

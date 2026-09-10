@@ -18,6 +18,7 @@ final readonly class BrandMetadata
         public ?string $backgroundColor = null,
         public ?string $textColor = null,
         public array $voiceTraits = [],
+        public ?string $brandGuidelines = null,
     ) {}
 
     public function mergeLlm(LlmBrandAnalysis $llm): self
@@ -34,6 +35,7 @@ final readonly class BrandMetadata
             backgroundColor: $this->backgroundColor ?: ($llm->backgroundColor ?: null),
             textColor: $this->textColor ?: ($llm->textColor ?: null),
             voiceTraits: $llm->voiceTraits ?: $this->voiceTraits,
+            brandGuidelines: $this->brandGuidelines ?: ($llm->brandGuidelines ?: null),
         );
     }
 
@@ -48,6 +50,7 @@ final readonly class BrandMetadata
             backgroundColor: $this->backgroundColor,
             textColor: $this->textColor,
             voiceTraits: $this->voiceTraits,
+            brandGuidelines: $this->brandGuidelines,
         );
     }
 
@@ -62,6 +65,7 @@ final readonly class BrandMetadata
             backgroundColor: $this->backgroundColor,
             textColor: $this->textColor,
             voiceTraits: $this->voiceTraits,
+            brandGuidelines: $this->brandGuidelines,
         );
     }
 
@@ -72,7 +76,7 @@ final readonly class BrandMetadata
      * For AI image generation we swap them: page text (usually dark) becomes
      * image background, and page background (usually light) becomes in-image text.
      *
-     * @return array{name: ?string, brand_description: ?string, content_language: ?string, brand_color: ?string, background_color: ?string, text_color: ?string, logo_url: ?string, brand_voice_traits: array<int, string>}
+     * @return array{name: ?string, brand_description: ?string, content_language: ?string, brand_color: ?string, background_color: ?string, text_color: ?string, logo_url: ?string, brand_voice_traits: array<int, string>, brand_guidelines: ?string}
      */
     public function toArray(): array
     {
@@ -85,6 +89,7 @@ final readonly class BrandMetadata
             'text_color' => $this->backgroundColor,
             'logo_url' => $this->logoUrl,
             'brand_voice_traits' => $this->voiceTraits,
+            'brand_guidelines' => $this->brandGuidelines,
         ];
     }
 }

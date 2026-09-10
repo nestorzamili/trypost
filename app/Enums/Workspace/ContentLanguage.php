@@ -32,6 +32,7 @@ enum ContentLanguage: string
     case Russian = 'ru';
     case Turkish = 'tr';
     case Arabic = 'ar';
+    case Malay = 'ms';
 
     public const DEFAULT = self::English;
 
@@ -57,6 +58,7 @@ enum ContentLanguage: string
             self::Russian => 'Русский',
             self::Turkish => 'Türkçe',
             self::Arabic => 'العربية',
+            self::Malay => 'Bahasa Melayu',
         };
     }
 
@@ -83,6 +85,7 @@ enum ContentLanguage: string
             self::Russian => 'Russian',
             self::Turkish => 'Turkish',
             self::Arabic => 'Arabic',
+            self::Malay => 'Malay',
         };
     }
 
@@ -93,6 +96,27 @@ enum ContentLanguage: string
     public function direction(): string
     {
         return $this === self::Arabic ? 'rtl' : 'ltr';
+    }
+
+    public static function fromNameOrCode(string $value): ?self
+    {
+        $needle = strtolower(trim($value));
+
+        if ($needle === '') {
+            return null;
+        }
+
+        foreach (self::cases() as $language) {
+            if (
+                strtolower($language->value) === $needle
+                || strtolower($language->englishName()) === $needle
+                || strtolower($language->label()) === $needle
+            ) {
+                return $language;
+            }
+        }
+
+        return self::fromHtmlLang($value);
     }
 
     /**

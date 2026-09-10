@@ -7,7 +7,9 @@ namespace App\Providers;
 use App\Listeners\StripeEventListener;
 use App\Models\AccessToken;
 use App\Models\Account;
+use App\Models\AiGeneration;
 use App\Models\AiUsageLog;
+use App\Models\BrandVariant;
 use App\Models\Invite;
 use App\Models\Media;
 use App\Models\Notification;
@@ -16,8 +18,6 @@ use App\Models\Plan;
 use App\Models\Post;
 use App\Models\PostComment;
 use App\Models\PostPlatform;
-use App\Models\Repurpose;
-use App\Models\RepurposeItem;
 use App\Models\SocialAccount;
 use App\Models\Subscription;
 use App\Models\SubscriptionItem;
@@ -25,9 +25,12 @@ use App\Models\User;
 use App\Models\Webhook;
 use App\Models\WebhookLog;
 use App\Models\Workspace;
+use App\Models\WorkspaceConversation;
+use App\Models\WorkspaceConversationMessage;
 use App\Models\WorkspaceInvite;
 use App\Models\WorkspaceLabel;
 use App\Models\WorkspaceSignature;
+use App\Services\Ai\Conversations\WorkspaceConversationStore;
 use App\Services\PostHogService;
 use App\Socialite\DiscordProvider;
 use App\Socialite\InstagramProvider;
@@ -47,6 +50,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Ai\Contracts\ConversationStore;
 use Laravel\Cashier\Cashier;
 use Laravel\Cashier\Events\WebhookReceived;
 use Laravel\Nightwatch\Facades\Nightwatch;
@@ -67,6 +71,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(ConversationStore::class, WorkspaceConversationStore::class);
+
         if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
             $this->app->register(TelescopeServiceProvider::class);
@@ -96,15 +102,15 @@ class AppServiceProvider extends ServiceProvider
         Relation::enforceMorphMap([
             'accessToken' => AccessToken::class,
             'account' => Account::class,
+            'aiGeneration' => AiGeneration::class,
             'aiUsageLog' => AiUsageLog::class,
+            'brandVariant' => BrandVariant::class,
             'invite' => Invite::class,
             'media' => Media::class,
             'notification' => Notification::class,
             'notificationPreference' => NotificationPreference::class,
             'plan' => Plan::class,
             'post' => Post::class,
-            'repurpose' => Repurpose::class,
-            'repurposeItem' => RepurposeItem::class,
             'postComment' => PostComment::class,
             'postPlatform' => PostPlatform::class,
             'socialAccount' => SocialAccount::class,
@@ -114,6 +120,8 @@ class AppServiceProvider extends ServiceProvider
             'webhook' => Webhook::class,
             'webhookLog' => WebhookLog::class,
             'workspace' => Workspace::class,
+            'workspaceConversation' => WorkspaceConversation::class,
+            'workspaceConversationMessage' => WorkspaceConversationMessage::class,
             'workspaceInvite' => WorkspaceInvite::class,
             'workspaceLabel' => WorkspaceLabel::class,
             'workspaceSignature' => WorkspaceSignature::class,

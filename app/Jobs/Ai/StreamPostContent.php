@@ -34,10 +34,12 @@ class StreamPostContent implements ShouldQueue
     public function handle(): void
     {
         $workspace = Workspace::findOrFail($this->workspaceId);
+        $brand = $workspace->resolvedBrand();
 
         $agent = new PostContentStreamer(
             workspace: $workspace,
             currentContent: $this->currentContent,
+            brand: $brand,
         );
 
         $channel = new PrivateChannel("user.{$this->userId}.ai-gen.{$this->generationId}");
@@ -58,7 +60,13 @@ class StreamPostContent implements ShouldQueue
                 provider: (string) $meta?->provider,
                 model: (string) $meta?->model,
                 userId: $this->userId,
-                metadata: ['agent' => 'post_streamer'],
+                metadata: [
+                    'agent' => 'post_streamer',
+                    'content_language' => $brand->languageCode,
+                    'brand_variant_id' => $brand->variantId,
+                    'brand_variant_language' => $brand->hasVariant ? $brand->languageCode : null,
+                    'has_brand_variant' => $brand->hasVariant,
+                ],
             );
         } catch (\Throwable $e) {
             Log::error('PostContentGenerator stream failed', [

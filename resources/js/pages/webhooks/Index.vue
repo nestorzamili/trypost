@@ -29,7 +29,9 @@ defineProps<{
 }>();
 
 const createDialogOpen = ref(false);
-const confirmDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
+const confirmDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
+    null,
+);
 
 const openWebhook = (webhook: Webhook) => {
     router.visit(show.url(webhook));
@@ -53,8 +55,13 @@ const handleDelete = (webhook: Webhook) => {
                 :description="$t('webhooks.description')"
             />
 
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                <Button data-testid="create-webhook-button" @click="createDialogOpen = true">
+            <div
+                class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end"
+            >
+                <Button
+                    data-testid="create-webhook-button"
+                    @click="createDialogOpen = true"
+                >
                     {{ $t('webhooks.new') }}
                 </Button>
             </div>
@@ -70,10 +77,18 @@ const handleDelete = (webhook: Webhook) => {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>{{ $t('webhooks.table.endpoint') }}</TableHead>
-                            <TableHead>{{ $t('webhooks.table.events') }}</TableHead>
-                            <TableHead>{{ $t('webhooks.table.status') }}</TableHead>
-                            <TableHead>{{ $t('webhooks.table.last_sent') }}</TableHead>
+                            <TableHead>{{
+                                $t('webhooks.table.endpoint')
+                            }}</TableHead>
+                            <TableHead>{{
+                                $t('webhooks.table.events')
+                            }}</TableHead>
+                            <TableHead>{{
+                                $t('webhooks.table.status')
+                            }}</TableHead>
+                            <TableHead>{{
+                                $t('webhooks.table.last_sent')
+                            }}</TableHead>
                             <TableHead class="text-right" />
                         </TableRow>
                     </TableHeader>
@@ -84,7 +99,9 @@ const handleDelete = (webhook: Webhook) => {
                             class="cursor-pointer"
                             @click="openWebhook(webhook)"
                         >
-                            <TableCell class="max-w-[160px] font-medium sm:max-w-md">
+                            <TableCell
+                                class="max-w-[160px] font-medium sm:max-w-md"
+                            >
                                 <p class="truncate">{{ webhook.endpoint }}</p>
                             </TableCell>
                             <TableCell>
@@ -92,13 +109,23 @@ const handleDelete = (webhook: Webhook) => {
                                     transChoice(
                                         'webhooks.events_count',
                                         webhook.events.length,
-                                        { count: String(webhook.events.length) },
+                                        {
+                                            count: String(
+                                                webhook.events.length,
+                                            ),
+                                        },
                                     )
                                 }}
                             </TableCell>
                             <TableCell>
-                                <Badge :variant="webhookStatusVariant(webhook.status)">
-                                    {{ $t(`webhooks.status.${webhook.status}`) }}
+                                <Badge
+                                    :variant="
+                                        webhookStatusVariant(webhook.status)
+                                    "
+                                >
+                                    {{
+                                        $t(`webhooks.status.${webhook.status}`)
+                                    }}
                                 </Badge>
                             </TableCell>
                             <TableCell>
@@ -113,7 +140,9 @@ const handleDelete = (webhook: Webhook) => {
                                         variant="outline"
                                         size="icon"
                                         class="size-8"
-                                        :aria-label="$t('webhooks.actions.view')"
+                                        :aria-label="
+                                            $t('webhooks.actions.view')
+                                        "
                                         data-testid="row-actions-trigger"
                                         @click="openWebhook(webhook)"
                                     >
@@ -123,11 +152,15 @@ const handleDelete = (webhook: Webhook) => {
                                         variant="outline"
                                         size="icon"
                                         class="size-8 bg-rose-100 hover:bg-rose-200"
-                                        :aria-label="$t('webhooks.actions.delete')"
+                                        :aria-label="
+                                            $t('webhooks.actions.delete')
+                                        "
                                         data-testid="delete-webhook-button"
                                         @click="handleDelete(webhook)"
                                     >
-                                        <IconTrash class="size-4 text-rose-700" />
+                                        <IconTrash
+                                            class="size-4 text-rose-700"
+                                        />
                                     </Button>
                                 </div>
                             </TableCell>

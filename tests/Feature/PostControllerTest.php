@@ -55,6 +55,62 @@ test('posts index shows posts for current workspace', function () {
     );
 });
 
+test('posts index paginates with numbered pages', function () {
+    $perPage = 10;
+
+    Post::factory()->count($perPage + 3)->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+
+    $firstPage = $this->actingAs($this->user)->get(route('app.posts.index'));
+
+    $firstPage->assertOk();
+    $firstPage->assertInertia(fn ($page) => $page
+        ->has('posts.data', $perPage)
+        ->where('posts.current_page', 1)
+        ->where('posts.last_page', 2)
+        ->where('posts.per_page', $perPage)
+        ->where('posts.total', $perPage + 3)
+    );
+
+    $secondPage = $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['page' => 2]));
+
+    $secondPage->assertOk();
+    $secondPage->assertInertia(fn ($page) => $page
+        ->has('posts.data', 3)
+        ->where('posts.current_page', 2)
+    );
+});
+
+test('draft posts expose their creation date and are ordered by it', function () {
+    $olderDraft = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::Draft,
+        'created_at' => now()->subDay(),
+    ]);
+    $newerDraft = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::Draft,
+        'created_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->user)->get(route('app.posts.index', [
+        'status' => PostStatus::Draft->value,
+    ]));
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->has('posts.data', 2)
+        ->where('posts.data.0.id', $newerDraft->id)
+        ->has('posts.data.0.created_at')
+        ->where('posts.data.1.id', $olderDraft->id)
+    );
+});
+
 test('posts index exposes workspace labels for filter dropdown', function () {
     WorkspaceLabel::factory()->count(3)->create(['workspace_id' => $this->workspace->id]);
     WorkspaceLabel::factory()->create(); // belongs to a different workspace; must not leak.
@@ -228,43 +284,6 @@ test('calendar does not include unscheduled drafts', function () {
             ->has("posts.{$dateKey}", 1)
             ->where("posts.{$dateKey}.0.content", 'Scheduled post appears on the calendar')
         );
-});
-
-// Create tests
-test('create requires authentication', function () {
-    $response = $this->get(route('app.posts.create'));
-
-    $response->assertRedirect(route('login'));
-});
-
-test('create renders the wizard page', function () {
-    $response = $this->actingAs($this->user)->get(route('app.posts.create'));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('posts/Create', false)
-        ->where('date', null)
-        ->has('socialAccounts', 1)
-        ->where('socialAccounts.0.id', $this->socialAccount->id)
-    );
-});
-
-test('create forwards date query param to the page', function () {
-    $response = $this->actingAs($this->user)->get(route('app.posts.create', ['date' => '2026-06-01']));
-
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('posts/Create', false)
-        ->where('date', '2026-06-01')
-    );
-});
-
-test('create redirects to workspaces.create when user has no workspace', function () {
-    $newUser = User::factory()->create();
-
-    $response = $this->actingAs($newUser)->get(route('app.posts.create'));
-
-    $response->assertRedirect(route('app.workspaces.create'));
 });
 
 // Store tests

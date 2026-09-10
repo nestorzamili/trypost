@@ -7,7 +7,7 @@ use App\Enums\Workspace\ContentLanguage;
 test('values exposes every supported content-language code', function () {
     expect(ContentLanguage::values())->toBe([
         'en', 'uk', 'pt-BR', 'es', 'fr', 'de', 'it', 'nl',
-        'pl', 'el', 'ja', 'ko', 'zh', 'ru', 'tr', 'ar',
+        'pl', 'el', 'ja', 'ko', 'zh', 'ru', 'tr', 'ar', 'ms',
     ]);
 });
 
@@ -45,6 +45,7 @@ test('englishName returns a distinct English name for every language', function 
     [ContentLanguage::Russian, 'Russian'],
     [ContentLanguage::Turkish, 'Turkish'],
     [ContentLanguage::Arabic, 'Arabic'],
+    [ContentLanguage::Malay, 'Malay'],
 ]);
 
 test('only English resolves to the English name', function () {
@@ -72,6 +73,7 @@ test('label returns the native name for every language', function (ContentLangua
     [ContentLanguage::Russian, 'Русский'],
     [ContentLanguage::Turkish, 'Türkçe'],
     [ContentLanguage::Arabic, 'العربية'],
+    [ContentLanguage::Malay, 'Bahasa Melayu'],
 ]);
 
 test('direction is rtl only for Arabic', function () {
@@ -95,6 +97,8 @@ test('fromHtmlLang resolves the two-letter primary subtag', function (string $la
     ['fr', ContentLanguage::French],
     ['ja-JP', ContentLanguage::Japanese],
     ['zh-Hans', ContentLanguage::Chinese],
+    ['ms', ContentLanguage::Malay],
+    ['ms-MY', ContentLanguage::Malay],
     ['sv', null],
     ['e', null],
     ['', null],

@@ -12,59 +12,88 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { activate, disable, pause, resume } from '@/routes/app/repurposes';
 import type { Repurpose } from '@/types/repurpose';
 import { RepurposeStatus } from '@/types/repurpose-status';
 
-const props = withDefaults(defineProps<{
-    repurpose: Repurpose;
-    blockedReason?: string | null;
-}>(), {
-    blockedReason: null,
-});
+const props = withDefaults(
+    defineProps<{
+        repurpose: Repurpose;
+        blockedReason?: string | null;
+    }>(),
+    {
+        blockedReason: null,
+    },
+);
 
 const emit = defineEmits<{ delete: [] }>();
 
 const status = computed(() => props.repurpose.status);
 
 const isIdle = computed(
-    () => status.value === RepurposeStatus.Draft || status.value === RepurposeStatus.Disabled,
+    () =>
+        status.value === RepurposeStatus.Draft ||
+        status.value === RepurposeStatus.Disabled,
 );
 
 const isBlocked = computed(() => Boolean(props.blockedReason));
 
 const send = (url: string) =>
-    router.post(url, {}, {
-        preserveScroll: true,
-        onError: (errors) =>
-            toast.error(
-                errors.status
-                    ?? errors.source_social_account_id
-                    ?? errors.destinations
-                    ?? trans('repurposes.errors.action_failed'),
-            ),
-    });
+    router.post(
+        url,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) =>
+                toast.error(
+                    errors.status ??
+                        errors.source_social_account_id ??
+                        errors.destinations ??
+                        trans('repurposes.errors.action_failed'),
+                ),
+        },
+    );
 </script>
 
 <template>
-    <div class="flex flex-wrap items-center gap-2" data-testid="repurpose-lifecycle">
+    <div
+        class="flex flex-wrap items-center gap-2"
+        data-testid="repurpose-lifecycle"
+    >
         <DropdownMenu>
             <DropdownMenuTrigger as-child>
-                <Button variant="outline" size="icon" data-testid="repurpose-menu" :aria-label="$t('repurposes.menu.label')">
+                <Button
+                    variant="outline"
+                    size="icon"
+                    data-testid="repurpose-menu"
+                    :aria-label="$t('repurposes.menu.label')"
+                >
                     <IconDots class="size-4" />
                 </Button>
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="start">
-                <DropdownMenuItem variant="destructive" data-testid="delete-repurpose" @select="emit('delete')">
+                <DropdownMenuItem
+                    variant="destructive"
+                    data-testid="delete-repurpose"
+                    @select="emit('delete')"
+                >
                     <IconTrash class="size-4" />
                     {{ $t('repurposes.danger.delete') }}
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
 
-        <TooltipProvider v-if="isIdle || status === RepurposeStatus.Paused" :delay-duration="200">
+        <TooltipProvider
+            v-if="isIdle || status === RepurposeStatus.Paused"
+            :delay-duration="200"
+        >
             <Tooltip>
                 <TooltipTrigger as-child>
                     <span tabindex="0">
@@ -88,7 +117,10 @@ const send = (url: string) =>
                         </Button>
                     </span>
                 </TooltipTrigger>
-                <TooltipContent v-if="isBlocked" class="max-w-xs whitespace-pre-line">
+                <TooltipContent
+                    v-if="isBlocked"
+                    class="max-w-xs whitespace-pre-line"
+                >
                     {{ blockedReason }}
                 </TooltipContent>
             </Tooltip>

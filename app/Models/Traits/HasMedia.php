@@ -30,6 +30,7 @@ trait HasMedia
         Workspace::class => [
             'logo' => 'single',
             'assets' => 'multiple',
+            'brand_references' => 'multiple',
         ],
         User::class => [
             'avatar' => 'single',

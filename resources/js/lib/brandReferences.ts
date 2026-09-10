@@ -1,0 +1,1 @@
+export const BRAND_REFERENCE_LIMIT = 10;

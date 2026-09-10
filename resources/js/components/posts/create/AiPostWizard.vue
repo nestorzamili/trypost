@@ -1,309 +1,557 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import {
-    IconArrowLeft,
-    IconCheck,
-} from '@tabler/icons-vue';
+import { IconArrowLeft, IconCheck, IconSparkles } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
-import ContentStylePicker from '@/components/ai/ContentStylePicker.vue';
+import { loading as loadingRoute } from '@/actions/App/Http/Controllers/App/PostCreateController';
+import BrandReferencePicker from '@/components/posts/create/BrandReferencePicker.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { getPlatformLogo } from '@/composables/usePlatformLogo';
-import { loading as loadingRoute } from '@/routes/app/posts/ai';
-import type { AiTemplate } from '@/types';
-import { ContentType, type ContentTypeValue } from '@/types/content-type';
+import {
+    getPlatformLabel,
+    getPlatformLogo,
+} from '@/composables/usePlatformLogo';
+import { credits as creditsRoute } from '@/routes/app/posts/ai';
+import type { MediaItem } from '@/types/media';
+import { uuid } from '@/utils/uuid';
 
-interface SocialAccount {
-    id: string;
+interface CatalogFormat {
+    value: string;
     platform: string;
-    display_name: string;
-    username: string;
-    display_label: string;
-    avatar_url: string | null;
+    label: string;
+    accounts: Array<{
+        id: string;
+        label: string;
+        username: string | null;
+        platform: string;
+    }>;
+}
+
+interface CatalogStyle {
+    key: string;
+    name: string;
+    description: string;
+    preview: string;
+    needs_account: boolean;
+    supported_formats: string[];
+    applies_brand_visuals: boolean;
 }
 
 interface Props {
-    socialAccounts: SocialAccount[];
-    templates: AiTemplate[];
-    /** ISO date (YYYY-MM-DD) carried over from the calendar's per-day "+" button. */
+    catalog: {
+        formats: CatalogFormat[];
+        styles: CatalogStyle[];
+        applies_brand_visuals_default: boolean;
+        content_language: string | null;
+        languages: Array<{
+            language_code: string;
+            label: string;
+            swatch?: string[];
+        }>;
+        brand_reference_count: number;
+    };
     date?: string | null;
+    brandReferences?: MediaItem[];
+    canManageBrandReferences?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     date: null,
+    brandReferences: () => [],
+    canManageBrandReferences: false,
 });
 
-const emit = defineEmits<{
-    /** Parent mirrors this in the PageHeader for context. */
-    'update:stepHeader': [{ title: string; description: string }];
-    /** Back button asks parent to leave the AI flow. */
-    cancel: [];
-}>();
+const emit = defineEmits<{ cancel: [] }>();
 
-const CAROUSEL_FORMAT = 'instagram_carousel' as const;
-type AiFormat = ContentTypeValue | typeof CAROUSEL_FORMAT;
-
-// Selections
-const selectedFormat = ref<AiFormat | null>(null);
-const selectedStyle = ref<string>('image_card');
-const selectedAccountId = ref<string | null>(null);
-const includeImages = ref(true);
-const imageCount = ref(2);
-const promptText = ref('');
-// true = images use the workspace brand palette; false = the AI picks colors freely.
-const useBrandColors = ref(true);
 const PROMPT_MIN = 3;
 const PROMPT_MAX = 2000;
 
+const prompt = ref('');
+const format = ref<string | null>(null);
+const accountId = ref<string | null>(null);
+const style = ref('image_card');
+const imageCount = ref(1);
+const languageCode = ref<string | null>(props.catalog.content_language);
+
+const localReferences = ref<MediaItem[]>([...props.brandReferences]);
+const selectedReferenceIds = ref<string[]>(
+    props.brandReferences.map((reference) => reference.id),
+);
+
 const submitting = ref(false);
+const failed = ref<string | null>(null);
+const credits = ref<{
+    allowed: boolean;
+    remaining?: number;
+    limit?: number;
+    message?: string;
+} | null>(null);
+const checkingCredits = ref(false);
 
-const AI_FORMATS: Array<{ value: AiFormat; platforms: string[] }> = [
-    { value: ContentType.InstagramFeed, platforms: ['instagram', 'instagram-facebook'] },
-    { value: CAROUSEL_FORMAT, platforms: ['instagram', 'instagram-facebook'] },
-    { value: ContentType.InstagramStory, platforms: ['instagram', 'instagram-facebook'] },
-    { value: ContentType.LinkedInPost, platforms: ['linkedin'] },
-    { value: ContentType.LinkedInPagePost, platforms: ['linkedin-page'] },
-    { value: ContentType.XPost, platforms: ['x'] },
-    { value: ContentType.BlueskyPost, platforms: ['bluesky'] },
-    { value: ContentType.ThreadsPost, platforms: ['threads'] },
-    { value: ContentType.MastodonPost, platforms: ['mastodon'] },
-    { value: ContentType.FacebookPost, platforms: ['facebook'] },
-    { value: ContentType.PinterestPin, platforms: ['pinterest'] },
-];
+const STORAGE_KEY = 'trypost:wizard:state';
 
-/** Templates with no format restriction — pure visual styles (image_card, tweet_card). */
-const styleTemplates = computed(() => props.templates.filter((t) => t.supported_formats.length === 0));
+const saveState = () => {
+    const state = {
+        prompt: prompt.value,
+        format: format.value,
+        accountId: accountId.value,
+        style: style.value,
+        imageCount: imageCount.value,
+        selectedReferenceIds: selectedReferenceIds.value,
+        languageCode: languageCode.value,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+};
 
-/** The template whose supported_formats includes the currently selected format (e.g. carousel). */
-const formatBoundTemplate = computed(() =>
-    selectedFormat.value
-        ? props.templates.find((t) => t.supported_formats.includes(selectedFormat.value as string)) ?? null
-        : null,
-);
-
-/** The template key that will be sent to the backend. */
-const resolvedTemplate = computed(() =>
-    formatBoundTemplate.value ? formatBoundTemplate.value.key : selectedStyle.value,
-);
-
-const resolvedTemplateRecord = computed(() =>
-    props.templates.find((t) => t.key === resolvedTemplate.value) ?? null,
-);
-
-const connectedPlatforms = computed(() => {
-    const platforms = new Set<string>();
-    for (const account of props.socialAccounts) {
-        platforms.add(account.platform);
+const restoreState = () => {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+        const state = JSON.parse(raw);
+        if (state.prompt) prompt.value = state.prompt;
+        if (state.format) format.value = state.format;
+        if (state.accountId) accountId.value = state.accountId;
+        if (state.style) style.value = state.style;
+        if (typeof state.imageCount === 'number')
+            imageCount.value = state.imageCount;
+        if (Array.isArray(state.selectedReferenceIds)) {
+            selectedReferenceIds.value = state.selectedReferenceIds.filter(
+                (id: string) =>
+                    localReferences.value.some((ref) => ref.id === id),
+            );
+        }
+        if (state.languageCode) languageCode.value = state.languageCode;
+    } catch {
+        sessionStorage.removeItem(STORAGE_KEY);
     }
-    return Array.from(platforms);
-});
+};
 
-const availableFormats = computed(() => AI_FORMATS);
+const clearState = () => sessionStorage.removeItem(STORAGE_KEY);
 
-const isFormatConnected = (format: typeof AI_FORMATS[number]): boolean =>
-    format.platforms.some((p) => connectedPlatforms.value.includes(p));
-
-const accountsForFormat = computed(() => {
-    if (!selectedFormat.value) return [];
-    const format = AI_FORMATS.find((f) => f.value === selectedFormat.value);
-    if (!format) return [];
-    return props.socialAccounts.filter((a) => format.platforms.includes(a.platform));
-});
-
-const isCarousel = computed(() => selectedFormat.value === CAROUSEL_FORMAT);
-const requiresImage = computed(() =>
-    selectedFormat.value === ContentType.FacebookPost ||
-    selectedFormat.value === ContentType.PinterestPin ||
-    selectedFormat.value === ContentType.InstagramStory,
-);
-const supportsOptionalImages = computed(() =>
-    selectedFormat.value === ContentType.InstagramFeed ||
-    selectedFormat.value === ContentType.LinkedInPost ||
-    selectedFormat.value === ContentType.LinkedInPagePost ||
-    selectedFormat.value === ContentType.XPost ||
-    selectedFormat.value === ContentType.BlueskyPost ||
-    selectedFormat.value === ContentType.ThreadsPost ||
-    selectedFormat.value === ContentType.MastodonPost,
-);
-const maxOptionalImages = computed(() =>
-    selectedFormat.value === ContentType.InstagramFeed ? 1 : 4,
-);
-const showsAccountPicker = computed(() => accountsForFormat.value.length > 1);
-
-const templateNeedsAccount = computed(() => resolvedTemplateRecord.value?.needs_account ?? false);
-
-const submittedImageCount = computed(() => {
-    if (isCarousel.value) return imageCount.value;
-    if (requiresImage.value) return 1;
-    if (supportsOptionalImages.value && includeImages.value) return imageCount.value;
-    return 0;
-});
-
-const promptLength = computed(() => [...promptText.value.trim()].length);
-
-const canSubmit = computed(() =>
-    selectedFormat.value !== null &&
-    selectedAccountId.value !== null &&
-    promptLength.value >= PROMPT_MIN &&
-    promptLength.value <= PROMPT_MAX,
+watch(
+    [
+        prompt,
+        format,
+        accountId,
+        style,
+        imageCount,
+        selectedReferenceIds,
+        languageCode,
+    ],
+    saveState,
+    { deep: true },
 );
 
-// Auto-pick the only account when format has exactly one match.
-watch(accountsForFormat, (accounts) => {
-    if (accounts.length === 1) {
-        selectedAccountId.value = accounts[0].id;
-    } else if (accounts.length === 0) {
-        selectedAccountId.value = null;
-    } else if (accounts.length > 1 && !accounts.some((a) => a.id === selectedAccountId.value)) {
-        selectedAccountId.value = null;
+restoreState();
+
+/** Deduplicate formats while preserving all linked accounts. */
+const formats = computed(() => {
+    const byValue = new Map<string, CatalogFormat>();
+
+    for (const entry of props.catalog.formats) {
+        const existing = byValue.get(entry.value);
+
+        if (existing) {
+            existing.accounts.push(...entry.accounts);
+            continue;
+        }
+
+        byValue.set(entry.value, {
+            value: entry.value,
+            platform: entry.platform,
+            label: entry.label,
+            accounts: [...entry.accounts],
+        });
     }
+
+    return [...byValue.values()];
 });
 
-const selectFormat = (format: AiFormat) => {
-    selectedFormat.value = format;
-    if (format === CAROUSEL_FORMAT) {
+const accountsForFormat = computed(
+    () =>
+        formats.value.find((entry) => entry.value === format.value)?.accounts ??
+        [],
+);
+
+const languages = computed(() => props.catalog.languages);
+
+const isCarousel = computed(() => format.value === 'instagram_carousel');
+
+const selectFormat = (value: string): void => {
+    format.value = value;
+
+    if (value === 'instagram_carousel') {
         imageCount.value = 5;
-    } else if (format === ContentType.InstagramFeed) {
+    } else if (
+        imageCount.value === 0 &&
+        (value === 'instagram_story' || value === 'pinterest_pin')
+    ) {
         imageCount.value = 1;
-        includeImages.value = true;
-    } else {
-        imageCount.value = 2;
-        includeImages.value = true;
+    }
+
+    const accounts =
+        formats.value.find((entry) => entry.value === value)?.accounts ?? [];
+    accountId.value = accounts.length === 1 ? accounts[0].id : null;
+};
+
+const onReferenceAdded = (newItem: MediaItem) => {
+    localReferences.value = [newItem, ...localReferences.value];
+    if (!selectedReferenceIds.value.includes(newItem.id)) {
+        selectedReferenceIds.value = [
+            ...selectedReferenceIds.value,
+            newItem.id,
+        ];
     }
 };
 
-emit('update:stepHeader', {
-    title: trans('posts.create.ai_title'),
-    description: trans('posts.create.ai_configure_description'),
-});
+const promptLength = computed(() => [...prompt.value.trim()].length);
 
-const goBack = () => {
-    emit('cancel');
+/**
+ * A style is usable for the chosen format when it declares no format
+ * restriction (empty supported_formats = universal) or explicitly lists the
+ * selected format. Before a format is picked, every style is allowed.
+ */
+const styleSupportsFormat = (entry: CatalogStyle): boolean => {
+    if (format.value === null) return true;
+    if (!entry.supported_formats || entry.supported_formats.length === 0) {
+        return true;
+    }
+
+    return entry.supported_formats.includes(format.value);
 };
 
-const startGeneration = () => {
-    if (!canSubmit.value || submitting.value) return;
+const selectedStyle = computed(
+    () => props.catalog.styles.find((entry) => entry.key === style.value) ?? null,
+);
+
+const styleCompatible = computed(
+    () => selectedStyle.value !== null && styleSupportsFormat(selectedStyle.value),
+);
+
+// When the chosen format no longer supports the selected style, fall back to
+// the first compatible style so the user is never stuck on an invalid combo.
+watch(format, () => {
+    if (selectedStyle.value && styleSupportsFormat(selectedStyle.value)) {
+        return;
+    }
+
+    const fallback = props.catalog.styles.find((entry) =>
+        styleSupportsFormat(entry),
+    );
+
+    if (fallback) {
+        style.value = fallback.key;
+    }
+});
+
+const canContinue = computed(() => {
+    return (
+        format.value !== null &&
+        accountId.value !== null &&
+        style.value !== null &&
+        styleCompatible.value &&
+        promptLength.value >= PROMPT_MIN &&
+        promptLength.value <= PROMPT_MAX
+    );
+});
+
+/**
+ * The first unmet requirement, surfaced under the disabled generate button so
+ * the user knows why they cannot continue instead of facing a dead button.
+ */
+const blockingReason = computed<string | null>(() => {
+    if (format.value === null) return trans('posts.wizard.need_format');
+    if (accountId.value === null) return trans('posts.wizard.need_account');
+    if (!styleCompatible.value) return trans('posts.wizard.need_compatible_style');
+    if (promptLength.value < PROMPT_MIN) return trans('posts.wizard.need_prompt');
+    if (promptLength.value > PROMPT_MAX) return trans('posts.wizard.prompt_too_long');
+
+    return null;
+});
+
+const generate = (): void => {
+    if (submitting.value || !canContinue.value) return;
 
     submitting.value = true;
+    failed.value = null;
 
-    router.visit(
-        loadingRoute(
-            { creationId: crypto.randomUUID() },
-            {
-                query: {
-                    images: String(submittedImageCount.value),
-                    format: selectedFormat.value ?? '',
-                    prompt: promptText.value.trim(),
-                    social_account_id: selectedAccountId.value ?? '',
-                    date: props.date ?? '',
-                    template: resolvedTemplate.value,
-                    apply_brand_visuals: useBrandColors.value ? '1' : '0',
-                },
-            },
-        ).url,
-        {
-            onError: () => toast.error(trans('posts.create.steps.preview_error')),
-            onFinish: () => { submitting.value = false; },
+    const hasReferences =
+        imageCount.value > 0 && selectedReferenceIds.value.length > 0;
+
+    const creationId = uuid();
+    const query: Record<string, string> = {
+        images: String(imageCount.value),
+        format: format.value ?? '',
+        style: style.value ?? '',
+        template: style.value ?? '',
+        prompt: prompt.value.trim(),
+        apply_brand_visuals: '1',
+    };
+    if (accountId.value) query.social_account_id = accountId.value;
+    if (props.date) query.date = props.date;
+    if (languageCode.value) query.language_code = languageCode.value;
+    if (hasReferences) {
+        query.use_brand_references = '1';
+        query.reference_media_ids = selectedReferenceIds.value.join(',');
+    }
+
+    clearState();
+
+    router.visit(loadingRoute({ creationId }, { query }).url, {
+        onError: () => {
+            toast.error(trans('posts.wizard.failed'));
+            submitting.value = false;
         },
-    );
+    });
 };
 
+const checkCredits = async (): Promise<void> => {
+    if (checkingCredits.value) return;
+
+    checkingCredits.value = true;
+
+    try {
+        const response = await fetch(creditsRoute.url(), {
+            headers: { Accept: 'application/json' },
+        });
+
+        if (!response.ok) {
+            credits.value = { allowed: true };
+            checkingCredits.value = false;
+            return;
+        }
+
+        credits.value = (await response.json()) as {
+            allowed: boolean;
+            remaining?: number;
+            limit?: number;
+            message?: string;
+        };
+    } catch {
+        credits.value = { allowed: true };
+    }
+
+    checkingCredits.value = false;
+};
+
+// Pre-flight credit check on mount.
+void checkCredits();
 </script>
 
 <template>
-    <div class="space-y-6">
-        <!-- Back button -->
-        <button
-            type="button"
-            class="group inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-foreground/70 transition-colors hover:text-foreground"
-            @click="goBack"
-        >
-            <span class="inline-flex size-7 items-center justify-center rounded-md border-2 border-foreground bg-card shadow-2xs transition-transform group-hover:-translate-x-0.5">
-                <IconArrowLeft class="size-3.5 text-foreground" stroke-width="2.5" />
-            </span>
-            {{ $t('posts.create.steps.back') }}
-        </button>
-
-        <!-- Format -->
-        <div class="space-y-2">
-            <Label class="text-sm font-bold">{{ $t('posts.create.steps.format_title') }}</Label>
-            <div class="grid gap-2 sm:grid-cols-2">
-                <button
-                    v-for="format in availableFormats"
-                    :key="format.value"
-                    type="button"
-                    class="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-foreground bg-card p-3.5 text-left text-sm shadow-2xs transition-all hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-card"
-                    :class="{ '!bg-violet-100 shadow-md': selectedFormat === format.value }"
-                    :disabled="!isFormatConnected(format)"
-                    :title="!isFormatConnected(format) ? $t('posts.create.steps.connect_first') : ''"
-                    @click="selectFormat(format.value)"
+    <div class="space-y-8">
+        <!-- Header Back Action -->
+        <div>
+            <button
+                type="button"
+                class="group inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground/70 transition-colors hover:text-foreground"
+                @click="emit('cancel')"
+            >
+                <span
+                    class="inline-flex size-7 items-center justify-center rounded-lg border-2 border-foreground bg-card shadow-2xs transition-transform group-hover:-translate-x-0.5"
                 >
-                    <span class="inline-flex size-7 items-center justify-center overflow-hidden rounded-full border-2 border-foreground bg-card shadow-2xs">
+                    <IconArrowLeft
+                        class="size-3.5 text-foreground"
+                        stroke-width="2.5"
+                    />
+                </span>
+                {{ $t('common.back') }}
+            </button>
+        </div>
+
+        <!-- 1. Format Selection with Social Media Icons -->
+        <div class="space-y-3">
+            <Label class="text-sm font-bold">
+                {{ $t('posts.wizard.format_label') }}
+            </Label>
+            <div class="grid gap-2.5 sm:grid-cols-2">
+                <button
+                    v-for="entry in formats"
+                    :key="entry.value"
+                    type="button"
+                    class="group flex cursor-pointer items-center gap-3 rounded-xl border-2 border-foreground bg-card p-3.5 text-left text-sm shadow-2xs transition-all hover:-translate-y-0.5 hover:shadow-md"
+                    :class="{
+                        '!bg-violet-100 shadow-md ring-2 ring-foreground':
+                            format === entry.value,
+                    }"
+                    @click="selectFormat(entry.value)"
+                >
+                    <span
+                        class="inline-flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-foreground bg-card shadow-2xs"
+                    >
                         <img
-                            :src="getPlatformLogo(format.platforms[0])"
-                            :alt="format.platforms[0]"
+                            :src="getPlatformLogo(entry.platform)"
+                            :alt="getPlatformLabel(entry.platform)"
                             class="size-full object-cover"
+                            loading="lazy"
                         />
                     </span>
-                    <span class="flex-1 font-semibold text-foreground">{{ $t(`posts.create.steps.format.${format.value}`) }}</span>
-                    <IconCheck v-if="selectedFormat === format.value" class="size-4 text-foreground" stroke-width="3" />
+                    <span class="flex-1 font-semibold text-foreground">
+                        {{ entry.label }}
+                    </span>
+                    <IconCheck
+                        v-if="format === entry.value"
+                        class="size-4 shrink-0 text-foreground"
+                        stroke-width="3"
+                    />
                 </button>
             </div>
         </div>
 
-        <!-- Visual style — shown only for single-image formats (not carousel) -->
-        <div v-if="selectedFormat && !formatBoundTemplate" class="space-y-2">
-            <Label class="text-sm font-bold">{{ $t('posts.create.steps.template_picker_title') }}</Label>
-            <ContentStylePicker v-model="selectedStyle" :styles="styleTemplates" />
-        </div>
-
-        <!-- Account (when template needs_account OR there's a choice to make) -->
-        <div v-if="selectedFormat && (templateNeedsAccount || showsAccountPicker)" class="space-y-2">
-            <Label class="text-sm font-bold">{{ $t('posts.create.steps.account_title') }}</Label>
-            <p v-if="templateNeedsAccount && accountsForFormat.length === 0" class="text-sm text-foreground/60">
-                {{ $t('posts.create.steps.no_account_for_template') }}
-            </p>
-            <div v-else class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <!-- 1b. Account Selection (when multiple accounts match format) -->
+        <div v-if="accountsForFormat.length > 1" class="space-y-3">
+            <Label class="text-sm font-bold">
+                {{ $t('posts.wizard.account_label') }}
+            </Label>
+            <div class="grid gap-2 sm:grid-cols-2">
                 <button
                     v-for="account in accountsForFormat"
                     :key="account.id"
                     type="button"
-                    class="relative flex cursor-pointer items-center gap-2 rounded-xl border-2 border-foreground bg-card p-2.5 text-left text-sm shadow-2xs transition-all hover:bg-foreground/5"
-                    :class="{ '!bg-violet-100 shadow-md': selectedAccountId === account.id }"
-                    @click="selectedAccountId = account.id"
+                    class="group flex cursor-pointer items-center gap-3 rounded-xl border-2 border-foreground bg-card p-3 text-left text-sm shadow-2xs transition-all hover:-translate-y-0.5 hover:shadow-md"
+                    :class="{
+                        '!bg-violet-100 shadow-md ring-2 ring-foreground':
+                            accountId === account.id,
+                    }"
+                    @click="accountId = account.id"
                 >
-                    <span class="inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-foreground bg-card shadow-2xs">
+                    <span
+                        class="inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-foreground bg-card shadow-2xs"
+                    >
                         <img
-                            v-if="account.avatar_url"
-                            :src="account.avatar_url"
-                            :alt="account.display_label"
+                            :src="getPlatformLogo(account.platform)"
+                            :alt="account.platform"
                             class="size-full object-cover"
+                            loading="lazy"
                         />
-                        <img v-else :src="getPlatformLogo(account.platform)" :alt="account.platform" class="size-4" />
                     </span>
                     <div class="min-w-0 flex-1">
-                        <p class="truncate text-xs font-bold leading-tight text-foreground">{{ account.display_label }}</p>
-                        <p v-if="account.username" class="truncate text-xs font-medium text-foreground/60">@{{ account.username }}</p>
+                        <p
+                            class="truncate text-xs leading-tight font-bold text-foreground"
+                        >
+                            {{ account.label }}
+                        </p>
+                        <p
+                            v-if="account.username"
+                            class="truncate text-xs font-medium text-foreground/60"
+                        >
+                            @{{ account.username }}
+                        </p>
                     </div>
-                    <IconCheck v-if="selectedAccountId === account.id" class="absolute right-2 top-2 size-3.5 text-foreground" stroke-width="3" />
+                    <IconCheck
+                        v-if="accountId === account.id"
+                        class="size-4 shrink-0 text-foreground"
+                        stroke-width="3"
+                    />
                 </button>
             </div>
         </div>
 
-        <!-- Media — inline, only when format actually has options -->
-        <div v-if="selectedFormat && isCarousel" class="space-y-2">
-            <Label class="text-sm font-bold">{{ $t('posts.create.steps.media_carousel') }}</Label>
-            <div class="flex flex-wrap gap-2">
+        <!-- 2. Visual Style (Image Cards Preview) -->
+        <div class="space-y-3">
+            <Label class="text-sm font-bold">
+                {{ $t('posts.wizard.style_label') }}
+            </Label>
+            <div class="grid gap-3 sm:grid-cols-3">
+                <button
+                    v-for="entry in catalog.styles"
+                    :key="entry.key"
+                    type="button"
+                    :disabled="!styleSupportsFormat(entry)"
+                    class="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-foreground bg-card text-left shadow-2xs transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-2xs"
+                    :class="{
+                        '!bg-violet-100 shadow-md ring-2 ring-foreground':
+                            style === entry.key,
+                    }"
+                    :title="
+                        !styleSupportsFormat(entry)
+                            ? $t('posts.wizard.style_unsupported_for_format')
+                            : undefined
+                    "
+                    @click="styleSupportsFormat(entry) && (style = entry.key)"
+                >
+                    <div class="aspect-video w-full overflow-hidden bg-muted">
+                        <img
+                            :src="entry.preview"
+                            :alt="entry.name"
+                            class="size-full object-cover transition-transform group-hover:scale-102"
+                            loading="lazy"
+                        />
+                    </div>
+                    <div class="flex items-start gap-2 p-3">
+                        <div class="min-w-0 flex-1">
+                            <p
+                                class="truncate text-sm font-bold text-foreground"
+                            >
+                                {{ entry.name }}
+                            </p>
+                            <p
+                                v-if="entry.description"
+                                class="mt-0.5 text-xs leading-snug text-foreground/60"
+                            >
+                                {{ entry.description }}
+                            </p>
+                        </div>
+                        <IconCheck
+                            v-if="style === entry.key"
+                            class="mt-0.5 size-4 shrink-0 text-foreground"
+                            stroke-width="3"
+                        />
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. Media / Image Count (Ergonomic Pill Buttons) -->
+        <div class="space-y-3">
+            <div class="flex items-center justify-between">
+                <Label class="text-sm font-bold">
+                    {{ $t('posts.wizard.images_label') }}
+                </Label>
+                <span class="text-xs font-semibold text-foreground/70">
+                    {{
+                        imageCount === 0
+                            ? $t('posts.wizard.media_none')
+                            : `${imageCount} ${$t('posts.wizard.media_images')}`
+                    }}
+                </span>
+            </div>
+
+            <!-- Carousel pills (2 to 10) -->
+            <div v-if="isCarousel" class="flex flex-wrap gap-2">
                 <Button
                     v-for="n in [2, 3, 4, 5, 6, 7, 8, 9, 10]"
                     :key="n"
                     type="button"
-                    size="icon"
+                    size="sm"
+                    class="h-9 min-w-9 font-bold"
+                    :variant="imageCount === n ? 'default' : 'outline'"
+                    @click="imageCount = n"
+                >
+                    {{ n }}
+                </Button>
+            </div>
+
+            <!-- Standard feed pills (None, 1 to 4) -->
+            <div v-else class="flex flex-wrap items-center gap-2">
+                <Button
+                    type="button"
+                    size="sm"
+                    class="h-9 font-semibold"
+                    :variant="imageCount === 0 ? 'default' : 'outline'"
+                    @click="imageCount = 0"
+                >
+                    {{ $t('posts.wizard.media_none') }}
+                </Button>
+                <Button
+                    v-for="n in [1, 2, 3, 4]"
+                    :key="n"
+                    type="button"
+                    size="sm"
+                    class="h-9 min-w-9 font-bold"
                     :variant="imageCount === n ? 'default' : 'outline'"
                     @click="imageCount = n"
                 >
@@ -312,66 +560,175 @@ const startGeneration = () => {
             </div>
         </div>
 
-        <div v-if="selectedFormat && supportsOptionalImages" class="space-y-2">
-            <Label class="text-sm font-bold">{{ $t('posts.create.steps.media_optional_label') }}</Label>
-            <div class="flex flex-wrap gap-2">
-                <Button
-                    type="button"
-                    :variant="!includeImages ? 'default' : 'outline'"
-                    @click="includeImages = false"
-                >
-                    {{ $t('posts.create.steps.media_none') }}
-                </Button>
-                <Button
-                    v-for="n in maxOptionalImages"
-                    :key="n"
-                    type="button"
-                    size="icon"
-                    :variant="includeImages && imageCount === n ? 'default' : 'outline'"
-                    @click="includeImages = true; imageCount = n"
-                >
-                    {{ n }}
-                </Button>
-            </div>
-        </div>
-
-        <!-- Brand colors: apply the workspace palette or let the AI decide. Only
-             for image templates that honor it (tweet cards are always branded). -->
-        <div
-            v-if="selectedFormat && submittedImageCount > 0 && resolvedTemplateRecord?.applies_brand_visuals"
-            class="flex items-center justify-between gap-4 rounded-xl border-2 border-foreground bg-card p-4 shadow-2xs"
-        >
+        <!-- 4. Language Variant Selection -->
+        <div class="space-y-3">
             <div class="space-y-0.5">
-                <Label for="apply-brand-visuals" class="text-sm font-bold">{{ $t('posts.create.steps.brand_colors_label') }}</Label>
-                <p class="text-sm text-foreground/70">{{ $t('posts.create.steps.brand_colors_description') }}</p>
+                <Label class="text-sm font-bold">
+                    {{ $t('posts.wizard.language_variant_label') }}
+                </Label>
+                <p class="text-xs text-foreground/60">
+                    {{ $t('posts.wizard.language_variant_description') }}
+                </p>
             </div>
-            <Switch id="apply-brand-visuals" v-model="useBrandColors" />
-        </div>
 
-        <!-- Prompt -->
-        <div v-if="selectedFormat" class="space-y-2">
-            <Label for="ai-prompt" class="text-sm font-bold">{{ $t('posts.create.steps.prompt_label') }}</Label>
-            <Textarea
-                id="ai-prompt"
-                v-model="promptText"
-                :placeholder="$t('posts.create.steps.prompt_placeholder')"
-                class="min-h-[140px] resize-none"
-            />
-            <p
-                data-testid="ai-prompt-counter"
-                aria-live="polite"
-                class="text-right text-xs tabular-nums"
-                :class="promptLength > PROMPT_MAX ? 'font-semibold text-destructive' : 'text-muted-foreground'"
+            <!-- If multiple language variants exist -->
+            <div v-if="languages.length > 1" class="grid gap-2 sm:grid-cols-2">
+                <button
+                    v-for="entry in languages"
+                    :key="entry.language_code"
+                    type="button"
+                    class="flex cursor-pointer items-center justify-between rounded-xl border-2 border-foreground bg-card p-3 text-left text-sm shadow-2xs transition-all hover:-translate-y-0.5 hover:shadow-md"
+                    :class="{
+                        '!bg-violet-100 shadow-md ring-2 ring-foreground':
+                            languageCode === entry.language_code,
+                    }"
+                    @click="languageCode = entry.language_code"
+                >
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="inline-flex size-6 items-center justify-center rounded-md border border-foreground/30 bg-muted text-[11px] font-bold text-foreground uppercase"
+                        >
+                            {{ entry.language_code }}
+                        </span>
+                        <span class="font-semibold text-foreground">
+                            {{ entry.label }}
+                        </span>
+                        <span
+                            v-if="entry.swatch && entry.swatch.length"
+                            class="ml-1 flex items-center gap-0.5"
+                            :title="$t('posts.wizard.language_variant_swatch_hint')"
+                        >
+                            <span
+                                v-for="(color, i) in entry.swatch"
+                                :key="i"
+                                class="size-3 rounded-full border border-foreground/40"
+                                :style="{ backgroundColor: color }"
+                            />
+                        </span>
+                    </div>
+                    <IconCheck
+                        v-if="languageCode === entry.language_code"
+                        class="size-4 shrink-0 text-foreground"
+                        stroke-width="3"
+                    />
+                </button>
+            </div>
+
+            <!-- Single default variant badge -->
+            <div
+                v-else-if="languages.length === 1"
+                class="flex items-center justify-between rounded-xl border-2 border-foreground/20 bg-card p-3.5"
             >
-                {{ promptLength }}/{{ PROMPT_MAX }}
-            </p>
+                <div class="flex items-center gap-2.5">
+                    <span
+                        class="inline-flex size-7 items-center justify-center rounded-lg border border-foreground/30 bg-muted text-xs font-bold text-foreground uppercase"
+                    >
+                        {{ languages[0].language_code }}
+                    </span>
+                    <div>
+                        <p class="text-sm font-bold text-foreground">
+                            {{ languages[0].label }}
+                        </p>
+                        <p class="text-xs text-foreground/60">
+                            {{ $t('posts.wizard.language_variant_default') }}
+                        </p>
+                    </div>
+                </div>
+                <span
+                    class="rounded-md border border-foreground/20 bg-muted/60 px-2 py-1 text-[11px] font-semibold text-foreground/70"
+                >
+                    {{ $t('posts.wizard.language_variant_default') }}
+                </span>
+            </div>
         </div>
 
-        <!-- Generate -->
-        <div v-if="selectedFormat" class="flex justify-end pt-1">
-            <Button :disabled="!canSubmit || submitting" @click="startGeneration">
-                {{ $t('posts.ai.generate.start') }}
-            </Button>
+        <!-- 5. Brand References (shown when image count > 0) -->
+        <div v-if="imageCount > 0" class="space-y-3">
+            <Label class="text-sm font-bold">
+                {{ $t('posts.wizard.brand_references_title') }}
+            </Label>
+            <BrandReferencePicker
+                v-model:selected-ids="selectedReferenceIds"
+                :references="localReferences"
+                :can-manage="props.canManageBrandReferences"
+                @reference-added="onReferenceAdded"
+            />
+        </div>
+
+        <!-- 6. Prompt Input -->
+        <div class="space-y-2">
+            <div class="flex items-center justify-between">
+                <Label for="wizard-prompt" class="text-sm font-bold">
+                    {{ $t('posts.wizard.prompt_label') }}
+                </Label>
+                <span
+                    class="text-xs tabular-nums"
+                    :class="
+                        promptLength > PROMPT_MAX
+                            ? 'font-bold text-destructive'
+                            : 'text-muted-foreground'
+                    "
+                >
+                    {{ promptLength }}/{{ PROMPT_MAX }}
+                </span>
+            </div>
+            <Textarea
+                id="wizard-prompt"
+                v-model="prompt"
+                rows="4"
+                :placeholder="$t('posts.wizard.prompt_placeholder')"
+                class="resize-none"
+            />
+        </div>
+
+        <!-- Error & Detached Status Alerts -->
+        <p v-if="failed" class="text-sm font-medium text-destructive">
+            {{ failed }}
+        </p>
+
+        <p
+            v-if="credits && !credits.allowed"
+            class="text-sm font-medium text-destructive"
+        >
+            {{ credits.message ?? $t('posts.wizard.credits_exhausted') }}
+        </p>
+
+        <!-- Generation Actions -->
+        <div class="space-y-2 pt-2">
+            <div class="flex items-center justify-between gap-3">
+                <Button
+                    variant="ghost"
+                    :disabled="submitting"
+                    @click="emit('cancel')"
+                >
+                    {{ $t('common.back') }}
+                </Button>
+
+                <Button
+                    size="lg"
+                    class="gap-2 font-bold"
+                    :disabled="
+                        !canContinue ||
+                        submitting ||
+                        (credits !== null && !credits.allowed)
+                    "
+                    @click="generate"
+                >
+                    <IconSparkles class="size-4" />
+                    {{
+                        submitting
+                            ? $t('posts.wizard.submitting')
+                            : $t('posts.wizard.generate')
+                    }}
+                </Button>
+            </div>
+
+            <p
+                v-if="blockingReason && !submitting"
+                class="text-right text-xs font-medium text-foreground/60"
+            >
+                {{ blockingReason }}
+            </p>
         </div>
     </div>
 </template>

@@ -78,7 +78,9 @@ const PLATFORM_THEMES: Record<string, { bg: string; rotate: string }> = {
 export const getPlatformLogo = (platform: string): string =>
     PLATFORM_LOGOS[platform] ?? PLATFORM_LOGOS.linkedin;
 
-export const getPlatformTheme = (platform: string): { bg: string; rotate: string; image: string } => ({
+export const getPlatformTheme = (
+    platform: string,
+): { bg: string; rotate: string; image: string } => ({
     ...(PLATFORM_THEMES[platform] ?? { bg: 'bg-muted', rotate: '' }),
     image: getPlatformLogo(platform),
 });

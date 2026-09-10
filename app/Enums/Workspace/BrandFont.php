@@ -28,6 +28,10 @@ enum BrandFont: string
     case RobotoSlab = 'Roboto Slab';
     case Merriweather = 'Merriweather';
     case PlayfairDisplay = 'Playfair Display';
+    case NotoSerifTC = 'Noto Serif TC';
+    case NotoSansTC = 'Noto Sans TC';
+    case SourceHanSerifTC = 'Source Han Serif TC';
+    case Caveat = 'Caveat';
     case Rubik = 'Rubik';
     case PtSans = 'PT Sans';
     case WorkSans = 'Work Sans';

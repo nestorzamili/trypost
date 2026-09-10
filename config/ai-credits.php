@@ -31,6 +31,10 @@ return [
         // If we ever expose medium/high to users, add gpt-image-2-medium / -hd.
         'gpt-image-2' => 15,
         'flux-pro' => 30,
+        // BytePlus Ark Seedream — ~$0.03-0.045/image depending on version.
+        'seedream-4-0-250828' => 12,
+        'seedream-4-5-251128' => 15,
+        'seedream-5-0-260128' => 15,
     ],
 
     'video' => [

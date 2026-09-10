@@ -105,3 +105,75 @@ test('forCarousel returns one media item per slide', function () {
 
     $this->assertDatabaseCount('medias', 3);
 });
+
+test('forCarousel resumes: reused slides are not re-rendered and are returned unchanged', function () {
+    // Only slide index 1 (the previously-failed one) should be rendered.
+    $this->mock(TemplateImageGenerator::class, function ($mock) {
+        $mock->shouldReceive('render')->once()->andReturn($this->rendered);
+    });
+
+    $structured = [
+        'caption' => 'Swipe',
+        'slides' => [
+            ['title' => 'Tip 1', 'body' => 'First', 'image_keywords' => ['a']],
+            ['title' => 'Tip 2', 'body' => 'Second', 'image_keywords' => ['b']],
+            ['title' => 'Tip 3', 'body' => 'Third', 'image_keywords' => ['c']],
+        ],
+    ];
+
+    // Slides 0 and 2 already rendered on a prior attempt.
+    $existing = [
+        0 => ['id' => 'kept-0', 'path' => 'ai-images/kept0.webp', 'source' => Source::Ai->value],
+        2 => ['id' => 'kept-2', 'path' => 'ai-images/kept2.webp', 'source' => Source::Ai->value],
+    ];
+
+    $pipeline = app(PostImagePipeline::class);
+
+    $media = $pipeline->forCarousel(
+        $this->workspace,
+        $this->account,
+        $structured,
+        ContentType::InstagramFeed,
+        existingSlideMedia: $existing,
+    );
+
+    // Keyed by slide index, all three present.
+    expect(array_keys($media))->toBe([0, 1, 2]);
+    // Reused slides passed through verbatim (no new Media rows for them).
+    expect($media[0])->toBe($existing[0]);
+    expect($media[2])->toBe($existing[2]);
+    // Only the one newly-rendered slide created a Media row.
+    $this->assertDatabaseCount('medias', 1);
+});
+
+test('forCarousel resume leaves a gap when a still-missing slide renders nothing', function () {
+    $this->mock(TemplateImageGenerator::class, function ($mock) {
+        $mock->shouldReceive('render')->once()->andReturn(null);
+    });
+
+    $structured = [
+        'caption' => 'Swipe',
+        'slides' => [
+            ['title' => 'Tip 1', 'body' => 'First', 'image_keywords' => ['a']],
+            ['title' => 'Tip 2', 'body' => 'Second', 'image_keywords' => ['b']],
+        ],
+    ];
+
+    $existing = [
+        0 => ['id' => 'kept-0', 'path' => 'ai-images/kept0.webp', 'source' => Source::Ai->value],
+    ];
+
+    $pipeline = app(PostImagePipeline::class);
+
+    $media = $pipeline->forCarousel(
+        $this->workspace,
+        $this->account,
+        $structured,
+        ContentType::InstagramFeed,
+        existingSlideMedia: $existing,
+    );
+
+    // Slide 1 still failed -> index 1 absent (gap), only the reused slide 0 present.
+    expect(array_keys($media))->toBe([0]);
+    expect($media[0])->toBe($existing[0]);
+});

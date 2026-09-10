@@ -91,7 +91,7 @@ const confirmDisconnect = (client: ConnectedClient): void => {
                             :data-testid="`mcp-connected-client-${client.client_id}`"
                         >
                             <div
-                                class="inline-flex size-10 -rotate-2 flex-shrink-0 items-center justify-center rounded-2xl border-2 border-foreground bg-violet-100 shadow-2xs"
+                                class="inline-flex size-10 flex-shrink-0 -rotate-2 items-center justify-center rounded-2xl border-2 border-foreground bg-violet-100 shadow-2xs"
                             >
                                 <IconPlugConnected
                                     class="size-5 text-foreground"
@@ -99,7 +99,9 @@ const confirmDisconnect = (client: ConnectedClient): void => {
                                 />
                             </div>
                             <div class="min-w-0 flex-1 space-y-0.5">
-                                <div class="truncate text-sm font-bold text-foreground">
+                                <div
+                                    class="truncate text-sm font-bold text-foreground"
+                                >
                                     {{ client.name }}
                                 </div>
                                 <div

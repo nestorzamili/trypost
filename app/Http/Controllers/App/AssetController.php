@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\App;
 
+use App\Enums\Media\BrandReferenceKind;
 use App\Http\Requests\App\Asset\StoreAssetFromUrlRequest;
 use App\Http\Requests\App\Asset\StoreAssetRequest;
 use App\Http\Requests\App\Asset\StoreChunkedAssetRequest;
@@ -35,7 +36,9 @@ class AssetController extends Controller
 
         $this->authorize('createPost', $workspace);
 
-        return Inertia::render('assets/Index');
+        return Inertia::render('assets/Index', [
+            'canManageBrandReferences' => $request->user()->can('update', $workspace),
+        ]);
     }
 
     public function search(Request $request): AnonymousResourceCollection
@@ -73,7 +76,17 @@ class AssetController extends Controller
     {
         $workspace = $request->user()->currentWorkspace;
 
-        $this->authorize('createPost', $workspace);
+        $collection = (string) $request->validated('collection', 'assets');
+
+        if ($collection === 'brand_references') {
+            $this->authorize('update', $workspace);
+
+            if ($workspace->getMedia('brand_references')->count() >= BrandReferenceKind::MAX_REFERENCES) {
+                abort(SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY, __('assets.references.limit_reached', ['max' => BrandReferenceKind::MAX_REFERENCES]));
+            }
+        } else {
+            $this->authorize('createPost', $workspace);
+        }
 
         return $receiver->receive(
             $workspace,
@@ -84,6 +97,7 @@ class AssetController extends Controller
             (int) $request->validated('range_end'),
             (int) $request->validated('total_size'),
             (string) $request->validated('upload_id'),
+            $collection,
         )->toResponse();
     }
 

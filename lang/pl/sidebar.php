@@ -29,6 +29,10 @@ return [
     'repurposes' => 'Repurpose',
     'onboarding' => 'Pierwsze kroki',
     'onboarding_hint' => 'Dokończ konfigurację',
+    'chat' => 'Czat',
+    'chat_history' => 'Historia',
+    'new_chat' => 'Nowy czat',
+    'no_chats' => 'Brak czatów',
     'posts' => [
         'calendar' => 'Kalendarz',
         'all' => 'Wszystkie',

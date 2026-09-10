@@ -192,7 +192,15 @@ class WorkspaceController extends Controller
         $this->authorize('update', $workspace);
 
         return Inertia::render('settings/workspace/Brand', [
-            'workspace' => $workspace,
+            'workspace' => $workspace->load('brandVariants'),
+            'variantLanguages' => collect(ContentLanguage::cases())
+                ->map(fn (ContentLanguage $language): array => [
+                    'code' => $language->value,
+                    'label' => $language->label(),
+                    'available' => ! $workspace->brandVariants->contains('language_code', $language->value),
+                ])
+                ->values()
+                ->all(),
             'availableFonts' => BrandFont::values(),
             'availableImageStyles' => ImageStyle::values(),
             'availableVoiceTraits' => BrandVoiceTrait::grouped(),

@@ -1,0 +1,31 @@
+# TryPost — IP + port deploy override.
+#
+# Layers ON TOP of compose.prod.yaml WITHOUT changing it. It reuses the exact
+# same services, image and containers as the production stack and only changes
+# how the app port is published: the base file binds to 127.0.0.1 (expecting a
+# reverse proxy in front), this file binds to 0.0.0.0 so the app is reachable
+# directly at http://<server-ip>:<port>.
+#
+# The in-container Nginx already proxies the Reverb WebSocket (/app, /apps) on
+# the SAME port 80, so no second port is exposed — the browser reaches Reverb
+# at the same host:port it loaded the app from (see resources/js/echo.ts, which
+# falls back to the page origin when VITE_REVERB_HOST is not pinned at build).
+#
+# Usage (see scripts/deploy-ip.sh for the wrapped workflow):
+#   TRYPOST_IMAGE=ghcr.io/OWNER/REPO:SHA APP_PORT=8000 \
+#     docker compose --env-file .env -p trypost \
+#       -f compose.prod.yaml -f compose.ip.yaml up -d
+#
+# NOTE: serving over http://IP:port is UNENCRYPTED — logins and tokens travel
+# in the clear. Use it for internal/VPN/staging hosts; put TLS in front for a
+# public production deployment.
+
+services:
+  app:
+    # !override REPLACES the base ports list instead of appending to it — the
+    # base file publishes 127.0.0.1:8000, and appending a second 0.0.0.0 binding
+    # on the same host port would collide. Requires Docker Compose v2.24+.
+    ports: !override
+      # Publish the app (and the Nginx-proxied Reverb WebSocket) on all
+      # interfaces so it is reachable by the host's public/LAN IP.
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-8000}:80"

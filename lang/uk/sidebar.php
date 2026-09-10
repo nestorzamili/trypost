@@ -29,6 +29,10 @@ return [
     'repurposes' => 'Repurpose',
     'onboarding' => 'Початок роботи',
     'onboarding_hint' => 'Завершіть налаштування',
+    'chat' => 'Чат',
+    'chat_history' => 'Історія',
+    'new_chat' => 'Новий чат',
+    'no_chats' => 'Ще немає чатів',
     'posts' => [
         'calendar' => 'Календар',
         'all' => 'Усі',

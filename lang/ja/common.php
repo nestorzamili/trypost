@@ -61,6 +61,13 @@ return [
     'close' => '閉じる',
     'loading_more' => 'さらに読み込み中...',
 
+    'pagination' => [
+        'label' => 'ページ送り',
+        'previous' => '前のページ',
+        'next' => '次のページ',
+        'go_to_page' => ':page ページ目へ移動',
+    ],
+
     'actions' => [
         'copy' => 'コピー',
         'copied' => 'コピーしました',

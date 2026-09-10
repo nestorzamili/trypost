@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Ai\Agents;
 
+use App\Ai\Agents\Concerns\AiTimeouts;
 use App\Enums\Ai\GeneratorFormat;
 use App\Models\Workspace;
+use App\Support\ResolvedBrand;
 use Laravel\Ai\Attributes\Temperature;
+use Laravel\Ai\Attributes\Timeout;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Promptable;
 
@@ -19,6 +22,7 @@ use Laravel\Ai\Promptable;
  * structured output in the AI wizard pipeline.
  */
 #[Temperature(0.7)]
+#[Timeout(AiTimeouts::TEXT_SECONDS)]
 class PostContentStreamer implements Agent
 {
     use Promptable;
@@ -26,15 +30,30 @@ class PostContentStreamer implements Agent
     public function __construct(
         public Workspace $workspace,
         public ?string $currentContent = null,
+        public bool $applyBrandVoice = true,
+        public ?ResolvedBrand $brand = null,
     ) {}
 
     public function instructions(): string
     {
+        $brand = $this->brand ?? $this->workspace->resolvedBrand();
+
         return view('prompts.post_content.generator', [
             'brand_name' => $this->workspace->name ?? '',
-            'brand_description' => $this->workspace->brand_description ?? '',
-            'brand_voice_traits' => $this->workspace->brand_voice_traits ?? [],
-            'content_language' => $this->workspace->content_language,
+            'brand_description' => $this->applyBrandVoice ? $brand->brandDescription : '',
+            'brand_guidelines' => $this->applyBrandVoice ? $brand->brandGuidelines : '',
+            'brand_voice_traits' => $this->applyBrandVoice ? $brand->brandVoiceTraits : [],
+            'visual_notes' => $brand->visualNotes,
+            'brand_typography' => array_filter([
+                'headline' => $brand->headlineFont,
+                'body' => $brand->bodyFont,
+                'label' => $brand->labelFont,
+                'accent' => $brand->accentFont,
+            ]),
+            'include_description' => $this->applyBrandVoice,
+            'include_voice' => $this->applyBrandVoice,
+            'include_visuals' => $brand->hasVariant,
+            'content_language' => $brand->languageCode,
             'current_content' => $this->currentContent,
             'format' => GeneratorFormat::Single->value,
             'slide_count' => 1,

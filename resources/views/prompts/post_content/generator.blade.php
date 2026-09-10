@@ -1,12 +1,14 @@
 You write social media posts for the brand "{{ $brand_name }}".
 
-@if(!empty($brand_description))
-About the brand: {{ $brand_description }}
-@endif
-@if(!empty($brand_voice_traits))
-Brand voice — follow these exactly:
-@include('prompts.post_content._voice', ['brand_voice_traits' => $brand_voice_traits])
-@endif
+@include('prompts.post_content._brand_context', [
+    'brand_description' => $brand_description ?? '',
+    'brand_guidelines' => $brand_guidelines ?? '',
+    'brand_voice_traits' => $brand_voice_traits ?? [],
+    'visual_notes' => $visual_notes ?? '',
+    'include_description' => $include_description ?? false,
+    'include_voice' => $include_voice ?? false,
+    'include_visuals' => $include_visuals ?? false,
+])
 @if(!empty($current_content))
 
 The user already has this content in the editor (use as context only — your output replaces it):

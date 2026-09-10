@@ -534,6 +534,17 @@ enum ContentType: string
      * Content types that the AI generator currently supports. Reels/stories/
      * videos are excluded because the AI flow only produces text + images.
      *
+     * PinterestCarousel is excluded for a different reason: the generation
+     * pipeline recognises exactly one carousel, {@see self::CAROUSEL_FORMAT}.
+     * Any other multi-image type runs as a single-image generation and comes
+     * back with one image, below its own minMediaCount(), so the post can
+     * never be published. Do not add a type here without teaching
+     * App\Jobs\Ai\StreamPostCreation how to generate it.
+     *
+     * TelegramPost and DiscordMessage are text-first, image-optional types in
+     * the same family as XPost: the single-image flow already honours their
+     * copy budgets and caption rules with no pipeline changes.
+     *
      * @return array<self>
      */
     public static function aiSupported(): array
@@ -549,7 +560,8 @@ enum ContentType: string
             self::MastodonPost,
             self::FacebookPost,
             self::PinterestPin,
-            self::PinterestCarousel,
+            self::TelegramPost,
+            self::DiscordMessage,
         ];
     }
 

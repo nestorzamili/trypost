@@ -27,7 +27,9 @@ export interface WebhookLog extends WebhookLogBroadcast {
     response_body: string | null;
 }
 
-export const webhookLogFromBroadcast = (broadcast: WebhookLogBroadcast): WebhookLog => ({
+export const webhookLogFromBroadcast = (
+    broadcast: WebhookLogBroadcast,
+): WebhookLog => ({
     ...broadcast,
     payload: null,
     response_body: null,

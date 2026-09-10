@@ -3,7 +3,13 @@ import { computed } from 'vue';
 
 import PlatformLogo from '@/components/PlatformLogo.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import {
     Select,
     SelectContent,
@@ -11,9 +17,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { getPlatformLabel, getPlatformLogo } from '@/composables/usePlatformLogo';
+import {
+    getPlatformLabel,
+    getPlatformLogo,
+} from '@/composables/usePlatformLogo';
 import type { ChannelAccount } from '@/types/channel';
-import type { RepurposeSourceFormat, SourceFormatOption } from '@/types/repurpose';
+import type {
+    RepurposeSourceFormat,
+    SourceFormatOption,
+} from '@/types/repurpose';
 import { SocialAccountStatus } from '@/types/social-account-status';
 
 const props = defineProps<{
@@ -46,12 +58,16 @@ const accountOptions = computed(() =>
     <Card data-testid="repurpose-source-card">
         <CardHeader>
             <CardTitle>{{ $t('repurposes.source.title') }}</CardTitle>
-            <CardDescription>{{ $t('repurposes.source.description') }}</CardDescription>
+            <CardDescription>{{
+                $t('repurposes.source.description')
+            }}</CardDescription>
         </CardHeader>
 
         <CardContent class="space-y-4">
             <div class="space-y-1">
-                <p class="text-[11px] font-black uppercase tracking-widest text-foreground/60">
+                <p
+                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
+                >
                     {{ $t('repurposes.source.account_label') }}
                 </p>
 
@@ -59,8 +75,12 @@ const accountOptions = computed(() =>
                     <SearchableSelect
                         v-model="selectedAccount"
                         :options="accountOptions"
-                        :placeholder="$t('repurposes.create.source_placeholder')"
-                        :search-placeholder="$t('repurposes.create.source_search')"
+                        :placeholder="
+                            $t('repurposes.create.source_placeholder')
+                        "
+                        :search-placeholder="
+                            $t('repurposes.create.source_search')
+                        "
                         :empty-text="$t('repurposes.create.source_empty')"
                         :invalid="Boolean(error)"
                     >
@@ -78,17 +98,27 @@ const accountOptions = computed(() =>
                                 :data-testid="`source-option-${option.value}`"
                             />
 
-                            <span v-if="compact" class="truncate">{{ option.label }}</span>
+                            <span v-if="compact" class="truncate">{{
+                                option.label
+                            }}</span>
                             <span v-else class="min-w-0 text-left">
-                                <span class="block truncate text-sm font-bold">{{ option.label }}</span>
+                                <span
+                                    class="block truncate text-sm font-bold"
+                                    >{{ option.label }}</span
+                                >
                                 <span
                                     v-if="option.disconnected"
                                     class="block truncate text-xs font-semibold text-amber-700 dark:text-amber-400"
                                     :data-testid="`source-option-disconnected-${option.value}`"
                                 >
-                                    {{ $t('repurposes.source.needs_reconnect') }}
+                                    {{
+                                        $t('repurposes.source.needs_reconnect')
+                                    }}
                                 </span>
-                                <span v-else class="block truncate text-xs text-muted-foreground">
+                                <span
+                                    v-else
+                                    class="block truncate text-xs text-muted-foreground"
+                                >
                                     {{ getPlatformLabel(option.platform) }}
                                 </span>
                             </span>
@@ -100,16 +130,25 @@ const accountOptions = computed(() =>
             </div>
 
             <div class="space-y-1 sm:max-w-xs">
-                <p class="text-[11px] font-black uppercase tracking-widest text-foreground/60">
+                <p
+                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
+                >
                     {{ $t('repurposes.source.watch_label') }}
                 </p>
 
                 <Select v-model="format">
-                    <SelectTrigger class="w-full" data-testid="source-format-select">
+                    <SelectTrigger
+                        class="w-full"
+                        data-testid="source-format-select"
+                    >
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem v-for="option in formats" :key="option.value" :value="option.value">
+                        <SelectItem
+                            v-for="option in formats"
+                            :key="option.value"
+                            :value="option.value"
+                        >
                             {{ option.label }}
                         </SelectItem>
                     </SelectContent>

@@ -39,10 +39,14 @@ test('event broadcasts on the per-post and per-workspace channels', function () 
     expect($channels[1]->name)->toBe("private-workspace.{$this->workspace->id}");
 });
 
-test('event broadcasts with the post id', function () {
+test('event broadcasts with the post id and its card fields', function () {
     $event = new PostPlatformStatusUpdated($this->postPlatform);
 
-    expect($event->broadcastWith())->toBe(['post_id' => $this->post->id]);
+    expect($event->broadcastWith())->toBe([
+        'post_id' => $this->post->id,
+        'status' => PostStatus::Scheduled->value,
+        'published_at' => null,
+    ]);
 });
 
 test('event broadcasts as a stable name', function () {

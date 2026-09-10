@@ -7,6 +7,7 @@ return [
         'my_uploads' => 'My Uploads',
         'stock_photos' => 'Stock Photos',
         'gifs' => 'GIFs',
+        'references' => 'Brand References',
     ],
 
     'upload' => [
@@ -50,5 +51,42 @@ return [
         'no_results' => 'No GIFs found',
         'no_results_description' => 'Try a different search term.',
         'powered_by' => 'Powered by GIPHY',
+    ],
+
+    'references' => [
+        'description' => 'Photos that guide AI image generation: faces to preserve, logos, products, and visual styles. Up to :max photos.',
+        'kind_label' => 'Photo type',
+        'label_label' => 'Label (optional)',
+        'label_placeholder' => 'e.g. Sara, front-facing portrait',
+        'kinds' => [
+            'face_closeup' => 'Face close-up',
+            'full_body' => 'Full body',
+            'logo' => 'Logo',
+            'product' => 'Product',
+            'style' => 'Style',
+            'other' => 'Other',
+        ],
+        'upload' => [
+            'drag_drop' => 'Drag & drop reference photos here, or click to select',
+            'formats' => 'JPEG, PNG, GIF, WebP',
+        ],
+        'empty' => [
+            'title' => 'No brand references yet',
+            'description' => 'Add 3–5 clear photos: a front-facing portrait with good lighting, your logo, and products or styles you want the AI to reuse.',
+        ],
+        'add_from_assets' => 'Add from Assets',
+        'from_assets_title' => 'Choose photos from your assets',
+        'promote' => 'Save as reference',
+        'promoted' => 'Saved as brand reference.',
+        'promote_limit' => 'Only :remaining more photos can be added (max :max).',
+        'updated' => 'Reference photo updated.',
+        'deleted_title' => 'Delete reference photo',
+        'deleted_description' => 'Are you sure you want to delete this reference photo? AI generation will no longer use it. This action cannot be undone.',
+        'limit_reached' => 'You already have :max brand reference photos. Delete one before adding another.',
+        'search_placeholder' => 'Search references...',
+        'all_kinds' => 'All types',
+        'edit' => 'Edit label and type',
+        'save' => 'Save',
+        'manage' => 'Manage in Assets',
     ],
 ];

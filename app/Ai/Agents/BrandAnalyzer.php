@@ -52,6 +52,9 @@ class BrandAnalyzer implements Agent, HasStructuredOutput
                 ->items($schema->string()->enum(BrandVoiceTrait::values()))
                 ->description('Brand voice traits inferred from the site, using only the allowed values. Pick AT MOST ONE per single-select dimension (point of view, formality, energy, humor, attitude, warmth, confidence) and any number of style traits. See the instructions for the groups and what each value means.')
                 ->required(),
+            'brand_guidelines' => $schema->string()
+                ->description('Optional short brand guidelines (max ~4 sentences) capturing concrete do/don\'t rules inferred from the site: tone rules, terms to use or avoid, capitalization or formatting conventions, taglines. Written in the detected content language. Return an empty string if nothing concrete can be inferred.')
+                ->required(),
         ];
     }
 }

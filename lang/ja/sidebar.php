@@ -29,6 +29,10 @@ return [
     'repurposes' => 'Repurpose',
     'onboarding' => 'はじめに',
     'onboarding_hint' => 'セットアップを完了',
+    'chat' => 'チャット',
+    'chat_history' => '履歴',
+    'new_chat' => '新しいチャット',
+    'no_chats' => 'まだチャットはありません',
     'posts' => [
         'calendar' => 'カレンダー',
         'all' => 'すべて',

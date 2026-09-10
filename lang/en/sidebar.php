@@ -29,6 +29,10 @@ return [
     'repurposes' => 'Repurpose',
     'onboarding' => 'Getting started',
     'onboarding_hint' => 'Finish setup',
+    'chat' => 'AI Assistant',
+    'chat_history' => 'Chat history',
+    'new_chat' => 'New chat',
+    'no_chats' => 'No chats yet',
     'posts' => [
         'calendar' => 'Calendar',
         'all' => 'All',

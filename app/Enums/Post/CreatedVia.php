@@ -9,5 +9,7 @@ enum CreatedVia: string
     case Web = 'web';
     case Mcp = 'mcp';
     case Api = 'api';
+    case Chat = 'chat';
     case Repurpose = 'repurpose';
+    case Import = 'import';
 }

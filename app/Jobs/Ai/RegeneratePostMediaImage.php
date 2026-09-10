@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs\Ai;
 
 use App\Ai\Agents\PostImageRegenerator;
+use App\Enums\Ai\MediaRegenerationMode;
 use App\Enums\Media\Source;
 use App\Enums\Media\Type as MediaType;
 use App\Events\Ai\PostMediaRegenerated;
@@ -14,7 +15,9 @@ use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Services\Ai\RecordAiUsage;
 use App\Services\Image\TemplateImageGenerator;
+use App\Support\ResolvedBrand;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -26,9 +29,16 @@ use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
-class RegeneratePostMediaImage implements ShouldQueue
+class RegeneratePostMediaImage implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    /**
+     * Long enough to cover the render window (up to ~180s) plus queue wait, so
+     * a rapid double-submit of the same regeneration is deduped rather than
+     * billed twice. Keep under the worker timeout + retry_after envelope.
+     */
+    public int $uniqueFor = 990;
 
     public function __construct(
         public string $workspaceId,
@@ -37,8 +47,14 @@ class RegeneratePostMediaImage implements ShouldQueue
         public string $mediaId,
         public string $regenerationId,
         public string $instruction,
+        public MediaRegenerationMode $mode,
     ) {
         $this->onQueue('ai');
+    }
+
+    public function uniqueId(): string
+    {
+        return "{$this->workspaceId}:{$this->postId}:{$this->mediaId}:{$this->regenerationId}";
     }
 
     public function failed(?Throwable $exception): void
@@ -70,9 +86,10 @@ class RegeneratePostMediaImage implements ShouldQueue
             post: $post,
             workspace: $workspace,
         );
+        $brand = $this->resolveBrand($workspace, $baseContext);
 
-        $copy = $this->regenerateSlideCopy($workspace, $post, $baseContext);
-        $rendered = $this->renderRegeneratedImage($workspace, $post, $copy, $baseContext);
+        $copy = $this->regenerateSlideCopy($workspace, $post, $baseContext, $brand, $this->mode);
+        $rendered = $this->renderRegeneratedImage($workspace, $post, $copy, $baseContext, $brand);
         $newMediaItem = $this->replaceMediaOnPost($post, $target, $workspace, $rendered);
 
         PostMediaRegenerated::dispatch(
@@ -119,7 +136,8 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   background_path: string,
      *   language: string,
      *   width: int,
-     *   height: int
+     *   height: int,
+     *   brand_snapshot: array<string, mixed>|null
      * }  $baseContext
      * @return array{
      *   title: string,
@@ -130,10 +148,18 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   change_mode: 'image_only'|'text_only'|'both'
      * }
      */
-    private function regenerateSlideCopy(Workspace $workspace, Post $post, array $baseContext): array
-    {
+    private function regenerateSlideCopy(
+        Workspace $workspace,
+        Post $post,
+        array $baseContext,
+        ResolvedBrand $brand,
+        MediaRegenerationMode $mode,
+    ): array {
         /** @var PostImageRegenerator $agent */
-        $agent = app(PostImageRegenerator::class, ['workspace' => $workspace]);
+        $agent = app(PostImageRegenerator::class, [
+            'workspace' => $workspace,
+            'languageCode' => $brand->languageCode,
+        ]);
 
         $response = $agent->prompt(json_encode([
             'instruction' => $this->instruction,
@@ -141,6 +167,7 @@ class RegeneratePostMediaImage implements ShouldQueue
             'body' => data_get($baseContext, 'body'),
             'keywords' => data_get($baseContext, 'keywords'),
             'language' => data_get($baseContext, 'language'),
+            'mode' => $mode->value,
         ], JSON_THROW_ON_ERROR));
 
         RecordAiUsage::recordText(
@@ -151,10 +178,16 @@ class RegeneratePostMediaImage implements ShouldQueue
             model: (string) $response->meta->model,
             userId: $this->userId,
             postId: $post->id,
-            metadata: ['agent' => 'post_image_regenerator'],
+            metadata: [
+                'agent' => 'post_image_regenerator',
+                'content_language' => $brand->languageCode,
+                'brand_variant_id' => $brand->variantId,
+                'brand_variant_language' => $brand->languageCode,
+                'has_brand_variant' => $brand->hasVariant,
+            ],
         );
 
-        return $this->mergeStructuredCopy($baseContext, $response->structured ?? []);
+        return $this->mergeStructuredCopy($baseContext, $response->structured ?? [], $mode);
     }
 
     /**
@@ -177,11 +210,13 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   change_mode: 'image_only'|'text_only'|'both'
      * }
      */
-    private function mergeStructuredCopy(array $baseContext, array $structured): array
-    {
-        $changeMode = $this->resolveChangeMode((string) data_get($structured, 'change_mode', 'both'));
-        $regenerateImage = in_array($changeMode, ['image_only', 'both'], true);
-        $regenerateText = in_array($changeMode, ['text_only', 'both'], true);
+    private function mergeStructuredCopy(
+        array $baseContext,
+        array $structured,
+        MediaRegenerationMode $mode,
+    ): array {
+        $regenerateImage = $mode->regeneratesImage();
+        $regenerateText = $mode->regeneratesText();
         $keywords = $this->normalizeKeywords(data_get($structured, 'keywords', data_get($baseContext, 'keywords')));
 
         return [
@@ -194,7 +229,7 @@ class RegeneratePostMediaImage implements ShouldQueue
             'keywords' => $regenerateImage && $keywords !== [] ? $keywords : data_get($baseContext, 'keywords'),
             'regenerate_image' => $regenerateImage,
             'regenerate_text' => $regenerateText,
-            'change_mode' => $changeMode,
+            'change_mode' => $mode->value,
         ];
     }
 
@@ -213,7 +248,8 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   keywords: array<int, string>,
      *   language: string,
      *   width: int,
-     *   height: int
+     *   height: int,
+     *   brand_snapshot: array<string, mixed>|null
      * }  $baseContext
      * @return array{path: string, source_meta: array<string, mixed>}
      */
@@ -222,6 +258,7 @@ class RegeneratePostMediaImage implements ShouldQueue
         Post $post,
         array $copy,
         array $baseContext,
+        ResolvedBrand $brand,
     ): array {
         $socialAccount = $this->resolveSocialAccount($post, $workspace);
 
@@ -246,6 +283,7 @@ class RegeneratePostMediaImage implements ShouldQueue
             width: data_get($baseContext, 'width'),
             height: data_get($baseContext, 'height'),
             backgroundPath: $reusedBackgroundPath,
+            brand: $brand,
         );
 
         if (! $rendered) {
@@ -325,7 +363,8 @@ class RegeneratePostMediaImage implements ShouldQueue
      *   background_path: string,
      *   language: string,
      *   width: int,
-     *   height: int
+     *   height: int,
+     *   brand_snapshot: array<string, mixed>|null
      * }
      */
     private function buildSourceContext(array $sourceMeta, Post $post, Workspace $workspace): array
@@ -358,7 +397,22 @@ class RegeneratePostMediaImage implements ShouldQueue
             'language' => (string) data_get($sourceMeta, 'language', $workspace->content_language),
             'width' => (int) data_get($sourceMeta, 'width', TemplateImageGenerator::DEFAULT_WIDTH),
             'height' => (int) data_get($sourceMeta, 'height', TemplateImageGenerator::DEFAULT_HEIGHT),
+            'brand_snapshot' => is_array(data_get($sourceMeta, 'brand_snapshot'))
+                ? data_get($sourceMeta, 'brand_snapshot')
+                : null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $baseContext
+     */
+    private function resolveBrand(Workspace $workspace, array $baseContext): ResolvedBrand
+    {
+        $snapshot = data_get($baseContext, 'brand_snapshot');
+
+        return is_array($snapshot)
+            ? ResolvedBrand::fromSnapshot($snapshot)
+            : $workspace->resolvedBrand((string) data_get($baseContext, 'language', $workspace->content_language));
     }
 
     /**
@@ -409,17 +463,6 @@ class RegeneratePostMediaImage implements ShouldQueue
             ->map(fn (string $keyword) => trim($keyword))
             ->values()
             ->all();
-    }
-
-    /**
-     * @return 'image_only'|'text_only'|'both'
-     */
-    private function resolveChangeMode(string $value): string
-    {
-        return match ($value) {
-            'image_only', 'text_only', 'both' => $value,
-            default => 'both',
-        };
     }
 
     private function resolveSocialAccount(Post $post, Workspace $workspace): ?SocialAccount

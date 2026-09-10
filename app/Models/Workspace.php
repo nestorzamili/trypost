@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\Workspace\ImageStyle;
 use App\Models\Traits\HasMedia;
+use App\Support\ResolvedBrand;
 use Database\Factories\WorkspaceFactory;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -27,6 +28,7 @@ class Workspace extends Model
         'brand_website',
         'brand_description',
         'brand_voice_traits',
+        'brand_guidelines',
         'brand_color',
         'background_color',
         'text_color',
@@ -85,6 +87,16 @@ class Workspace extends Model
     public function signatures(): HasMany
     {
         return $this->hasMany(WorkspaceSignature::class);
+    }
+
+    public function brandVariants(): HasMany
+    {
+        return $this->hasMany(BrandVariant::class)->orderBy('sort_order');
+    }
+
+    public function resolvedBrand(?string $languageCode = null): ResolvedBrand
+    {
+        return ResolvedBrand::fromWorkspace($this, $languageCode);
     }
 
     public function labels(): HasMany

@@ -10,8 +10,6 @@ use App\Actions\Post\DuplicatePost;
 use App\Actions\Post\SyncPostPlatforms;
 use App\Actions\Post\UpdatePost;
 use App\Actions\SocialAccount\ListPinterestBoards;
-use App\Ai\Templates\AiContentTemplate;
-use App\Ai\Templates\AiTemplateRegistry;
 use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\CreatedVia;
 use App\Enums\Post\Status as PostStatus;
@@ -24,6 +22,7 @@ use App\Http\Resources\App\SocialAccountResource;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Services\Post\PostMetricsFetcher;
+use App\Services\Post\PostPreviewer;
 use App\Services\Social\TikTokCreatorInfo;
 use App\Support\LinkTlds;
 use App\Support\PostStatusRules;
@@ -36,6 +35,8 @@ use Inertia\Response;
 
 class PostController extends Controller
 {
+    private const POSTS_PER_PAGE = 10;
+
     public function index(Request $request, ?string $status = null): Response|RedirectResponse
     {
         $workspace = $request->user()->currentWorkspace;
@@ -72,9 +73,13 @@ class PostController extends Controller
             fn ($q) => $q->whereIn('workspace_labels.id', $labelIds),
         ));
 
+        $orderColumn = $status === PostStatus::Draft->value ? 'created_at' : 'scheduled_at';
+
         return Inertia::render('posts/Index', [
             'workspace' => $workspace,
-            'posts' => Inertia::scroll(fn () => $query->latest('scheduled_at')->paginate(config('app.pagination.default'))),
+            'posts' => $query->latest($orderColumn)
+                ->paginate(self::POSTS_PER_PAGE)
+                ->withQueryString(),
             'currentStatus' => $status,
             'labels' => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
             'filters' => [
@@ -140,33 +145,6 @@ class PostController extends Controller
         ]);
     }
 
-    public function create(Request $request): Response
-    {
-        $workspace = $request->user()->currentWorkspace;
-
-        $this->authorize('createPost', $workspace);
-
-        $registry = app(AiTemplateRegistry::class);
-
-        $templates = array_map(fn (AiContentTemplate $t) => [
-            'key' => $t->key(),
-            'name' => trans($t->name()),
-            'description' => trans($t->description()),
-            'preview' => $t->previewAsset(),
-            'needs_account' => $t->needsAccount(),
-            'supported_formats' => $t->supportedFormats(),
-            'applies_brand_visuals' => $t->appliesBrandVisuals(),
-        ], $registry->all());
-
-        return Inertia::render('posts/Create', [
-            'date' => $request->query('date'),
-            'socialAccounts' => SocialAccountResource::collection(
-                $workspace->socialAccounts()->active()->get()
-            ),
-            'templates' => $templates,
-        ]);
-    }
-
     public function store(StorePostRequest $request): RedirectResponse|\Symfony\Component\HttpFoundation\Response
     {
         $workspace = $request->user()->currentWorkspace;
@@ -206,6 +184,47 @@ class PostController extends Controller
         }
 
         return response()->json(app(PostMetricsFetcher::class)->forPlatform($postPlatform));
+    }
+
+    /**
+     * Read-only preview payload for the chat's expandable post preview.
+     * Lazy-loaded client-side on expand so media URLs and sanitized text
+     * never enter tool payloads (and the model's context with them).
+     */
+    public function chatPreview(Request $request, Post $post): JsonResponse
+    {
+        $this->authorize('view', $post);
+
+        $post->load(['postPlatforms.socialAccount']);
+
+        $preview = app(PostPreviewer::class)->forPost($post, onlyEnabled: false);
+
+        $contents = collect($preview['platforms'])->mapWithKeys(fn (array $entry): array => [
+            $entry['post_platform_id'] => $entry['sanitized_content'],
+        ])->all();
+
+        return response()->json([
+            'content' => (string) $post->content,
+            'media' => $post->media ?? [],
+            'platforms' => $post->postPlatforms->map(fn (PostPlatform $platform): array => [
+                'id' => $platform->id,
+                'platform' => $platform->platform->value,
+                'platform_name' => $platform->display_name,
+                'platform_avatar' => $platform->display_avatar,
+                'content_type' => $platform->content_type?->value,
+                'enabled' => $platform->enabled,
+                'social_account' => $platform->socialAccount !== null
+                    ? (new SocialAccountResource($platform->socialAccount))->resolve()
+                    : null,
+            ])->all(),
+            'platform_content_types' => $post->postPlatforms->mapWithKeys(fn (PostPlatform $platform): array => $platform->content_type !== null
+                ? [$platform->id => $platform->content_type->value]
+                : [])->all(),
+            'platform_meta' => $post->postPlatforms->mapWithKeys(fn (PostPlatform $platform): array => [
+                $platform->id => $platform->meta ?? [],
+            ])->all(),
+            'contents' => $contents,
+        ]);
     }
 
     public function show(Request $request, Post $post): Response|RedirectResponse

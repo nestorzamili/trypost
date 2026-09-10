@@ -18,6 +18,7 @@ const form = useForm({
     name: '',
     brand_website: '',
     brand_description: '',
+    brand_guidelines: '',
     brand_voice_traits: [] as string[],
     brand_color: null as string | null,
     background_color: null as string | null,

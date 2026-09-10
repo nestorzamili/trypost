@@ -26,28 +26,30 @@ return [
 
     'legal' => 'Devam ederek <a href=":terms_url" target="_blank">Hizmet Şartları</a> ve <a href=":privacy_url" target="_blank">Gizlilik Politikası</a>\'nı kabul etmiş olursunuz.',
 
-    'reviews' => [
-        'eyebrow' => 'G2\'de 5/5',
-        'heading' => 'Her gün paylaşanların favorisi',
-        'paulo_dantas' => [
-            'role' => 'Kurucu, chatadv.com.br',
-            'quote' => 'İçeriği tüm sosyal ağlar için oluşturmanın, düzenlemenin ve dağıtmanın basitliği. MCP ile içerik üretmek ve oradan planlamak için Claude ya da ChatGPT gibi istediğimiz yapay zekâyı kullanabiliyoruz.',
+    'slides' => [
+        'calendar' => [
+            'title' => 'Görsel Takvim',
+            'description' => 'Tüm sosyal hesaplarınızda içeriklerinizi sezgisel bir sürükle-bırak takvimiyle planlayın ve zamanlayın.',
         ],
-        'diego' => [
-            'role' => 'CEO, Globalfy.com',
-            'quote' => 'TryPost\'un ne kadar kolay olduğunu seviyorum. Gönderiyi doğrudan Claude içinde hazırlayıp MCP ile yayımlıyor ve ileri bir tarihe planlıyorum. Kurulumu beş dakika sürdü.',
+        'scheduling' => [
+            'title' => 'Akıllı Zamanlama',
+            'description' => 'LinkedIn, X, Instagram, TikTok, YouTube ve daha fazlasında gönderileri tek bir yerden zamanlayın.',
         ],
-        'luiz' => [
-            'role' => 'İçerik üreticisi',
-            'quote' => 'Yapay zekâ araçlarımı ve ajanlarımı bağlamanın ve gönderilerimi 9 sosyal medya platformunda birkaç dakikada planlamanın ne kadar kolay olduğunu çok seviyorum.',
+        'media' => [
+            'title' => 'Zengin Medya',
+            'description' => 'Görseller, karuseller, hikayeler ve reels paylaşın. Her platform doğru formatı otomatik olarak alır.',
         ],
-        'pedro' => [
-            'role' => 'Kurucu, templated.io',
-            'quote' => 'Kullanması ve entegre etmesi gerçekten kolay. MCP sayesinde arayüze yalnızca sosyal medya hesaplarını bağlamak için giriyorum.',
+        'video' => [
+            'title' => 'Video Yayınlama',
+            'description' => 'Videoları bir kez yükleyin; TikTok, YouTube Shorts, Instagram Reels ve Facebook Reels\'de yayınlayın.',
         ],
-        'paulo_castellano' => [
-            'role' => 'Kurucu, changelogfy.com',
-            'quote' => 'MCP entegrasyonunu çok seviyorum; tüm sosyal medya hesaplarımı Claude ya da ChatGPT üzerinden yönetmemi sağlıyor.',
+        'team' => [
+            'title' => 'Ekip Çalışma Alanları',
+            'description' => 'Ekibinizi davet edin, roller atayın ve birden fazla markayı ayrı çalışma alanlarından yönetin.',
+        ],
+        'signatures' => [
+            'title' => 'İmzalar',
+            'description' => 'Yeniden kullanılabilir imzalar (hashtag\'ler, bağlantılar, kapanışlar) kaydedin ve tek tıklamayla gönderilere ekleyin.',
         ],
     ],
 

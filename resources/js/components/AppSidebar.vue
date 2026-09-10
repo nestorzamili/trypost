@@ -1,35 +1,31 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import {
     IconAffiliate,
     IconAlertTriangle,
-    IconBrandDiscord,
     IconCalendar,
     IconChartBar,
     IconChevronRight,
     IconClock,
     IconFileCheck,
     IconFileText,
-    IconGift,
     IconHash,
-    IconLifebuoy,
     IconPencil,
     IconPhoto,
     IconPlugConnected,
     IconRepeat,
     IconSelector,
+    IconSparkles,
     IconTag,
     IconWebhook,
 } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import {
-    create as createPost,
     index as postsIndex,
 } from '@/actions/App/Http/Controllers/App/PostController';
 import NavMain from '@/components/NavMain.vue';
-import NavSupport from '@/components/NavSupport.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
 import SidebarOnboarding from '@/components/onboarding/SidebarOnboarding.vue';
 import { Avatar } from '@/components/ui/avatar';
@@ -51,11 +47,12 @@ import {
 } from '@/components/ui/sidebar';
 import WorkspaceMenuContent from '@/components/WorkspaceMenuContent.vue';
 import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
-import { accounts, analytics, calendar } from '@/routes/app';
+import { accounts, analytics, calendar, chat } from '@/routes/app';
 import { index as assets } from '@/routes/app/assets';
 import { portal } from '@/routes/app/billing';
 import { index as labels } from '@/routes/app/labels';
 import { index as mcp } from '@/routes/app/mcp';
+import { create as createPostRoute } from '@/routes/app/posts';
 import { index as repurposes } from '@/routes/app/repurposes';
 import { index as signatures } from '@/routes/app/signatures';
 import { index as webhooks } from '@/routes/app/webhooks';
@@ -88,6 +85,23 @@ const {
 } = useWorkspaceRole();
 const { isMobile } = useSidebar();
 
+const creatingPost = ref(false);
+
+const createPost = () => {
+    if (creatingPost.value) return;
+
+    creatingPost.value = true;
+    router.get(
+        createPostRoute.url(),
+        {},
+        {
+            onFinish: () => {
+                creatingPost.value = false;
+            },
+        },
+    );
+};
+
 const mainNavItems = computed<NavItem[]>(() => [
     {
         title: trans('sidebar.posts.calendar'),
@@ -98,6 +112,11 @@ const mainNavItems = computed<NavItem[]>(() => [
         title: trans('sidebar.analytics'),
         href: analytics.url(),
         icon: IconChartBar,
+    },
+    {
+        title: trans('sidebar.chat'),
+        href: chat.url(),
+        icon: IconSparkles,
     },
     ...(canManageRepurposes.value
         ? [
@@ -183,24 +202,6 @@ const workspaceNavItems = computed<NavItem[]>(() => [
         icon: IconPlugConnected,
     },
 ]);
-
-const bottomNavItems = computed(() => [
-    {
-        title: trans('sidebar.support.referral'),
-        href: 'https://affiliates.trypost.it/',
-        icon: IconGift,
-    },
-    {
-        title: trans('sidebar.support.discord'),
-        href: 'https://trypost.it/discord',
-        icon: IconBrandDiscord,
-    },
-    {
-        title: trans('sidebar.support.docs'),
-        href: 'https://docs.trypost.it',
-        icon: IconLifebuoy,
-    },
-]);
 </script>
 
 <template>
@@ -266,11 +267,14 @@ const bottomNavItems = computed(() => [
 
         <SidebarContent class="gap-px">
             <div v-if="currentWorkspace && canCreatePost" class="px-2 py-2">
-                <Link :href="createPost.url()" class="block">
-                    <Button class="w-full">
-                        {{ $t('sidebar.create_post') }}
-                    </Button>
-                </Link>
+                <Button
+                    class="w-full"
+                    data-testid="sidebar-create-post"
+                    :loading="creatingPost"
+                    @click="createPost"
+                >
+                    {{ $t('sidebar.create_post') }}
+                </Button>
             </div>
 
             <NavMain v-if="currentWorkspace" :items="mainNavItems" />
@@ -284,14 +288,6 @@ const bottomNavItems = computed(() => [
                 :items="workspaceNavItems"
                 :label="$t('sidebar.groups.workspace')"
             />
-
-            <div class="mt-auto">
-                <NavSupport
-                    v-if="currentWorkspace"
-                    :items="bottomNavItems"
-                    :label="$t('sidebar.groups.others')"
-                />
-            </div>
         </SidebarContent>
         <SidebarFooter>
             <SidebarOnboarding v-if="currentWorkspace" />

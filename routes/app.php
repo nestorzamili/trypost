@@ -6,18 +6,23 @@ use App\Http\Controllers\App\AnalyticsController;
 use App\Http\Controllers\App\ApiKeyController;
 use App\Http\Controllers\App\AssetController;
 use App\Http\Controllers\App\BillingController;
+use App\Http\Controllers\App\BrandReferencePhotoController;
+use App\Http\Controllers\App\BrandVariantController;
+use App\Http\Controllers\App\ChatController;
+use App\Http\Controllers\App\ChatMessageController;
 use App\Http\Controllers\App\DiscordController as AppDiscordController;
 use App\Http\Controllers\App\GiphyController;
 use App\Http\Controllers\App\LinkPreviewController;
 use App\Http\Controllers\App\McpSettingsController;
 use App\Http\Controllers\App\NotificationController;
 use App\Http\Controllers\App\OnboardingController;
-use App\Http\Controllers\App\PostAiCreateController;
 use App\Http\Controllers\App\PostAiGenerateController;
+use App\Http\Controllers\App\PostAiRegenerateCaptionController;
 use App\Http\Controllers\App\PostAiRegenerateMediaController;
 use App\Http\Controllers\App\PostAiReviewController;
 use App\Http\Controllers\App\PostCommentController;
 use App\Http\Controllers\App\PostController;
+use App\Http\Controllers\App\PostCreateController;
 use App\Http\Controllers\App\PresenceController;
 use App\Http\Controllers\App\RepurposeController;
 use App\Http\Controllers\App\Settings\AccountController;
@@ -178,10 +183,47 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
 
     // Brand settings
     Route::get('settings/workspace/brand', [WorkspaceController::class, 'brandSettings'])->name('app.workspace.brand');
+    Route::post('settings/workspace/brand-variants', [BrandVariantController::class, 'store'])
+        ->name('app.workspace.brand-variants.store');
+    Route::put('settings/workspace/brand-variants/{brandVariant}', [BrandVariantController::class, 'update'])
+        ->name('app.workspace.brand-variants.update');
+    Route::delete('settings/workspace/brand-variants/{brandVariant}', [BrandVariantController::class, 'destroy'])
+        ->name('app.workspace.brand-variants.destroy');
+    Route::get('settings/workspace/brand-references', [BrandReferencePhotoController::class, 'index'])
+        ->name('app.workspace.brand-references.index');
+    Route::get('settings/workspace/brand-references/search', [BrandReferencePhotoController::class, 'search'])
+        ->name('app.workspace.brand-references.search');
+    Route::post('settings/workspace/brand-references/from-asset', [BrandReferencePhotoController::class, 'fromAsset'])
+        ->name('app.workspace.brand-references.from-asset');
+    Route::patch('settings/workspace/brand-references/{media}', [BrandReferencePhotoController::class, 'update'])
+        ->name('app.workspace.brand-references.update');
+    Route::post('settings/workspace/brand-references', [BrandReferencePhotoController::class, 'store'])
+        ->name('app.workspace.brand-references.store');
+    Route::delete('settings/workspace/brand-references/{media}', [BrandReferencePhotoController::class, 'destroy'])
+        ->name('app.workspace.brand-references.destroy');
 
     // Social Accounts
     Route::get('accounts', [SocialController::class, 'index'])->name('app.accounts');
     Route::put('accounts/{account}/toggle', [SocialController::class, 'toggleActive'])->name('app.accounts.toggle');
+
+    // Chat
+    Route::get('chat', [ChatController::class, 'index'])->name('app.chat');
+    Route::post('chat/{conversation}', [ChatMessageController::class, 'store'])
+        ->whereUuid('conversation')
+        ->middleware('throttle:20,1')
+        ->name('app.chat.messages.store');
+    Route::post('chat/{conversation}/cancel', [ChatMessageController::class, 'cancel'])
+        ->whereUuid('conversation')
+        ->name('app.chat.messages.cancel');
+    Route::get('chat/{conversation}', [ChatController::class, 'show'])
+        ->whereUuid('conversation')
+        ->name('app.chat.show');
+    Route::patch('chat/{conversation}', [ChatController::class, 'update'])
+        ->whereUuid('conversation')
+        ->name('app.chat.update');
+    Route::delete('chat/{conversation}', [ChatController::class, 'destroy'])
+        ->whereUuid('conversation')
+        ->name('app.chat.destroy');
 
     // Analytics
     Route::get('analytics', [AnalyticsController::class, 'index'])->name('app.analytics');
@@ -190,13 +232,25 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     // Calendar
     Route::get('calendar', [PostController::class, 'calendar'])->name('app.calendar');
 
+    // Post creation (AI wizard + scratch). Declared before the `posts/{post}`
+    // wildcard so `posts/create` is not captured as a post id.
+    Route::get('posts/create', [PostCreateController::class, 'create'])->name('app.posts.create');
+    Route::get('posts/ai/{creationId}/loading', [PostCreateController::class, 'loading'])
+        ->name('app.posts.ai.loading')
+        ->whereUuid('creationId');
+    Route::post('posts/ai/start', [PostCreateController::class, 'start'])->name('app.posts.ai.start');
+    Route::get('posts/ai/{creationId}/status', [PostCreateController::class, 'status'])
+        ->name('app.posts.ai.status')
+        ->whereUuid('creationId');
+    Route::get('posts/ai/credits', [PostCreateController::class, 'credits'])->name('app.posts.ai.credits');
+
     // Posts
     Route::get('posts/{status?}', [PostController::class, 'index'])->name('app.posts.index')->where('status', 'draft|scheduled|published');
-    Route::get('posts/create', [PostController::class, 'create'])->name('app.posts.create');
     Route::post('posts', [PostController::class, 'store'])->name('app.posts.store');
     Route::get('posts/{post}/edit', [PostController::class, 'edit'])->name('app.posts.edit');
     Route::get('posts/{post}', [PostController::class, 'show'])->name('app.posts.show');
     Route::get('posts/{post}/platforms/{postPlatform}/metrics', [PostController::class, 'platformMetrics'])->name('app.posts.platforms.metrics');
+    Route::get('posts/{post}/chat-preview', [PostController::class, 'chatPreview'])->name('app.posts.chat-preview');
     Route::put('posts/{post}', [PostController::class, 'update'])->name('app.posts.update');
     Route::delete('posts/{post}', [PostController::class, 'destroy'])->name('app.posts.destroy');
     Route::post('posts/{post}/duplicate', [PostController::class, 'duplicate'])->name('app.posts.duplicate');
@@ -206,10 +260,9 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
 
     // Post AI
     Route::post('posts/{post}/ai/generate', [PostAiGenerateController::class, 'generate'])->name('app.posts.ai.generate');
+    Route::post('posts/{post}/ai/regenerate-caption', [PostAiRegenerateCaptionController::class, 'regenerate'])->name('app.posts.ai.regenerate-caption');
     Route::post('posts/{post}/media/{mediaId}/ai/regenerate', [PostAiRegenerateMediaController::class, 'regenerate'])->name('app.posts.ai.regenerate-media');
     Route::post('posts/{post}/ai/review', [PostAiReviewController::class, 'review'])->name('app.posts.ai.review');
-    Route::post('posts/ai/create', [PostAiCreateController::class, 'start'])->name('app.posts.ai.create');
-    Route::get('posts/ai/{creationId}/loading', [PostAiCreateController::class, 'loading'])->name('app.posts.ai.loading')->whereUuid('creationId');
 
     // Post Comments
     Route::get('posts/{post}/comments', [PostCommentController::class, 'index'])->name('app.posts.comments.index');

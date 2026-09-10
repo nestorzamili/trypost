@@ -18,4 +18,5 @@ export const webhookEventGroups = [
 export const webhookEventLabelKey = (event: string): string =>
     `webhooks.events.${event.replaceAll('.', '_')}`;
 
-export const webhookEventLabel = (event: string): string => trans(webhookEventLabelKey(event));
+export const webhookEventLabel = (event: string): string =>
+    trans(webhookEventLabelKey(event));

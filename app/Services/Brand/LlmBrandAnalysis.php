@@ -20,6 +20,7 @@ final readonly class LlmBrandAnalysis
         public string $backgroundColor = '',
         public string $textColor = '',
         public array $voiceTraits = [],
+        public string $brandGuidelines = '',
     ) {}
 
     public static function fromResponse(ArrayAccess|array $response): self
@@ -34,6 +35,7 @@ final readonly class LlmBrandAnalysis
             backgroundColor: self::normalizeHex((string) data_get($response, 'background_color', '')),
             textColor: self::normalizeHex((string) data_get($response, 'text_color', '')),
             voiceTraits: BrandVoiceTrait::coerce(is_array($traits) ? $traits : []),
+            brandGuidelines: trim((string) data_get($response, 'brand_guidelines', '')),
         );
     }
 

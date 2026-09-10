@@ -24,28 +24,30 @@ return [
 
     'legal' => 'By continuing, you agree to our <a href=":terms_url" target="_blank">Terms of Service</a> and <a href=":privacy_url" target="_blank">Privacy Policy</a>.',
 
-    'reviews' => [
-        'eyebrow' => '5/5 on G2',
-        'heading' => 'Loved by people who publish every day',
-        'paulo_dantas' => [
-            'role' => 'Founder, chatadv.com.br',
-            'quote' => 'The simplicity of creating, organizing and distributing content across every social network. With MCP, we can use the AI we prefer, like Claude or ChatGPT, to create content and schedule it from there.',
+    'slides' => [
+        'calendar' => [
+            'title' => 'Visual Calendar',
+            'description' => 'Plan and schedule your content with an intuitive drag-and-drop calendar across all your social accounts.',
         ],
-        'diego' => [
-            'role' => 'CEO, Globalfy.com',
-            'quote' => 'I like how easy TryPost is to use. I can create a post directly in Claude, then use the MCP to publish it and schedule it for the future. I set it up in five minutes.',
+        'scheduling' => [
+            'title' => 'Smart Scheduling',
+            'description' => 'Schedule posts across LinkedIn, X, Instagram, TikTok, YouTube, and more — all from one place.',
         ],
-        'luiz' => [
-            'role' => 'Content Creator',
-            'quote' => 'I really love how easy it is to connect my AI tools and agents and schedule my posts across 9 social media platforms in just a few minutes.',
+        'media' => [
+            'title' => 'Rich Media',
+            'description' => 'Publish images, carousels, stories, and reels. Each platform gets the right format automatically.',
         ],
-        'pedro' => [
-            'role' => 'Founder, templated.io',
-            'quote' => 'Really easy to use and integrate. With the MCP I only need the interface to connect the social media accounts.',
+        'video' => [
+            'title' => 'Video Publishing',
+            'description' => 'Upload videos once and publish to TikTok, YouTube Shorts, Instagram Reels, and Facebook Reels.',
         ],
-        'paulo_castellano' => [
-            'role' => 'Founder, changelogfy.com',
-            'quote' => 'I really love the MCP integration because it lets me organize all my social media accounts from Claude or ChatGPT.',
+        'team' => [
+            'title' => 'Team Workspaces',
+            'description' => 'Invite your team, assign roles, and manage multiple brands from separate workspaces.',
+        ],
+        'signatures' => [
+            'title' => 'Signatures',
+            'description' => 'Save reusable signatures (hashtags, links, signoffs) and append them to posts with one click.',
         ],
     ],
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Image;
 
 use App\Models\Workspace;
+use App\Support\ResolvedBrand;
 
 class BrandColorMapper
 {
@@ -12,9 +13,10 @@ class BrandColorMapper
      * Convert a workspace's brand color (hex) to an Unsplash color bucket.
      * Falls back to background_color, then null. Null = no color filter.
      */
-    public function fromWorkspace(Workspace $workspace): ?string
+    public function fromWorkspace(Workspace $workspace, ?ResolvedBrand $brand = null): ?string
     {
-        $hex = $workspace->brand_color ?: $workspace->background_color;
+        $resolved = $brand ?? $workspace->resolvedBrand();
+        $hex = $resolved->brandColor ?: $resolved->backgroundColor;
 
         return $hex ? $this->fromHex($hex) : null;
     }

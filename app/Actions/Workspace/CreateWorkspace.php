@@ -20,6 +20,7 @@ class CreateWorkspace
             'name' => data_get($data, 'name'),
             'brand_website' => data_get($data, 'brand_website'),
             'brand_description' => data_get($data, 'brand_description'),
+            'brand_guidelines' => data_get($data, 'brand_guidelines'),
             'brand_voice_traits' => data_get($data, 'brand_voice_traits'),
             'brand_color' => data_get($data, 'brand_color'),
             'background_color' => data_get($data, 'background_color'),

@@ -16,7 +16,9 @@ const props = defineProps<{
 const destinationLabels = computed(() =>
     props.destinations
         .map((destination) => {
-            const account = props.destinationAccounts.find((item) => item.id === destination.social_account_id);
+            const account = props.destinationAccounts.find(
+                (item) => item.id === destination.social_account_id,
+            );
 
             return account ? getPlatformLabel(account.platform) : null;
         })
@@ -51,7 +53,10 @@ const sentence = computed(() => {
 </script>
 
 <template>
-    <p class="max-w-2xl text-sm leading-relaxed text-foreground/70" data-testid="repurpose-summary">
+    <p
+        class="max-w-2xl text-sm leading-relaxed text-foreground/70"
+        data-testid="repurpose-summary"
+    >
         {{ sentence }}
     </p>
 </template>

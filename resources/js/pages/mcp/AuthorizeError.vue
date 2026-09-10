@@ -13,9 +13,7 @@ defineProps<{
         :title="$t('mcp.authorize.error_title')"
         :description="$t('mcp.authorize.error_body')"
     >
-        <p
-            class="text-sm text-muted-foreground"
-        >
+        <p class="text-sm text-muted-foreground">
             {{ errorDescription }}
         </p>
 

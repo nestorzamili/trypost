@@ -25,7 +25,8 @@ export const mcpClients: McpClient[] = [
         id: 'chatgpt',
         label: 'ChatGPT',
         logo: '/images/ai/chatgpt-white.svg',
-        settingsUrl: 'https://chatgpt.com/plugins#settings/Connectors?create-connector=true&redirectAfter=%2Fplugins',
+        settingsUrl:
+            'https://chatgpt.com/plugins#settings/Connectors?create-connector=true&redirectAfter=%2Fplugins',
         theme: { bg: 'bg-black', rotate: 'rotate-1' },
     },
 ];

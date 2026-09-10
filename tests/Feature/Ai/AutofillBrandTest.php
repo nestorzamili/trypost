@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\Ai\AutofillBrand;
 use App\Ai\Agents\BrandAnalyzer;
 use App\Services\Brand\BrandMetadata;
+use App\Services\Brand\LlmBrandAnalysis;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
 
@@ -540,4 +541,35 @@ test('BrandMetadata toArray exposes the shape the controller expects', function 
         'logo_url',
         'brand_voice_traits',
     ]);
+});
+
+test('brand guidelines proposed by the analyzer round-trip into the autofill payload', function () {
+    $llm = LlmBrandAnalysis::fromResponse([
+        'name' => 'Acme',
+        'description' => 'We sell anvils.',
+        'language' => 'en',
+        'brand_color' => '#ff0000',
+        'background_color' => '#ffffff',
+        'text_color' => '#000000',
+        'voice_traits' => [],
+        'brand_guidelines' => 'Always lowercase the brand name. Never say "cheap".',
+    ]);
+
+    expect($llm->brandGuidelines)->toBe('Always lowercase the brand name. Never say "cheap".');
+
+    $payload = (new BrandMetadata)->mergeLlm($llm)->toArray();
+
+    expect($payload)->toHaveKey('brand_guidelines')
+        ->and($payload['brand_guidelines'])->toBe('Always lowercase the brand name. Never say "cheap".');
+});
+
+test('a user-authored brand guideline is not overwritten by the analyzer', function () {
+    $llm = LlmBrandAnalysis::fromResponse([
+        'name' => 'Acme',
+        'brand_guidelines' => 'Analyzer guideline',
+    ]);
+
+    $existing = new BrandMetadata(brandGuidelines: 'User guideline');
+
+    expect($existing->mergeLlm($llm)->brandGuidelines)->toBe('User guideline');
 });

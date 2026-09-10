@@ -1,6 +1,8 @@
 import { InertiaLinkProps } from '@inertiajs/vue3';
 import type { Component } from 'vue';
 
+export type { BrandVariant, BrandVariantLanguage } from './brand';
+
 export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 export interface Workspace {
@@ -59,7 +61,6 @@ export interface NavItem {
     activePattern?: string;
     exact?: boolean;
     excludeActive?: string[];
-    badge?: string;
 }
 
 export interface OnboardingProgress {
@@ -151,8 +152,7 @@ export interface ContentLanguageOption {
 
 /**
  * An AI content template, as serialized by PostController::create from an
- * AiContentTemplate. Shared by the post-creation screen and the AI wizard —
- * declaring it in both places is what let them drift apart before.
+ * AiContentTemplate. Shared by the post-creation screen and the AI wizard.
  */
 export interface AiTemplate {
     key: string;
@@ -163,4 +163,3 @@ export interface AiTemplate {
     supported_formats: string[];
     applies_brand_visuals: boolean;
 }
-

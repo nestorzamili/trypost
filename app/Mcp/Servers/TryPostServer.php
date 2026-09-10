@@ -10,6 +10,10 @@ use App\Mcp\Tools\ApiKey\ListApiKeysTool;
 use App\Mcp\Tools\Asset\AttachExistingAssetTool;
 use App\Mcp\Tools\Asset\GetAssetTool;
 use App\Mcp\Tools\Asset\ListAssetsTool;
+use App\Mcp\Tools\BrandReferencePhoto\DeleteBrandReferencePhotoTool;
+use App\Mcp\Tools\BrandReferencePhoto\ListBrandReferencePhotosTool;
+use App\Mcp\Tools\BrandReferencePhoto\RequestBrandReferencePhotoUploadTool;
+use App\Mcp\Tools\BrandReferencePhoto\UpdateBrandReferencePhotoTool;
 use App\Mcp\Tools\Label\CreateLabelTool;
 use App\Mcp\Tools\Label\DeleteLabelTool;
 use App\Mcp\Tools\Label\ListLabelsTool;
@@ -87,6 +91,12 @@ class TryPostServer extends Server
         ListAssetsTool::class,
         GetAssetTool::class,
         AttachExistingAssetTool::class,
+
+        // Brand Reference Photos
+        ListBrandReferencePhotosTool::class,
+        RequestBrandReferencePhotoUploadTool::class,
+        UpdateBrandReferencePhotoTool::class,
+        DeleteBrandReferencePhotoTool::class,
 
         // Platforms (read-only metadata)
         ListContentTypesTool::class,

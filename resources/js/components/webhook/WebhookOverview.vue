@@ -54,7 +54,10 @@ const displaySecret = computed(() => {
                                 data-testid="toggle-secret"
                                 @click="secretVisible = !secretVisible"
                             >
-                                <IconEyeOff v-if="secretVisible" class="size-4" />
+                                <IconEyeOff
+                                    v-if="secretVisible"
+                                    class="size-4"
+                                />
                                 <IconEye v-else class="size-4" />
                             </Button>
                         </TooltipTrigger>
@@ -97,7 +100,11 @@ const displaySecret = computed(() => {
                 {{ $t('webhooks.show.listening_for') }}
             </p>
             <div class="flex flex-wrap gap-1.5">
-                <Badge v-for="event in webhook.events" :key="event" variant="outline">
+                <Badge
+                    v-for="event in webhook.events"
+                    :key="event"
+                    variant="outline"
+                >
                     {{ webhookEventLabel(event) }}
                 </Badge>
             </div>

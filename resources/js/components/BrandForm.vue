@@ -28,6 +28,7 @@ interface BrandFields {
     name?: string;
     brand_website: string;
     brand_description: string;
+    brand_guidelines: string;
     brand_voice_traits: string[];
     brand_color: string | null;
     background_color: string | null;
@@ -41,6 +42,7 @@ interface BrandFields {
 interface AutofillResponse {
     name: string | null;
     brand_description: string | null;
+    brand_guidelines: string | null;
     content_language: string | null;
     brand_color: string | null;
     background_color: string | null;
@@ -59,10 +61,12 @@ const props = withDefaults(
         availableContentLanguages: ContentLanguageOption[];
         autofill?: boolean;
         showName?: boolean;
+        showDefaultVisuals?: boolean;
     }>(),
     {
         autofill: false,
         showName: false,
+        showDefaultVisuals: true,
     },
 );
 
@@ -72,7 +76,8 @@ const logoPreview = ref<string | null>(null);
 
 // Only the `style` group stacks; every spectrum group (pov, formality, …) is
 // single-select, so picking an option clears the others in that group.
-const isTraitSelected = (value: string): boolean => (props.fields.brand_voice_traits ?? []).includes(value);
+const isTraitSelected = (value: string): boolean =>
+    (props.fields.brand_voice_traits ?? []).includes(value);
 
 const toggleTrait = (group: string, value: string): void => {
     const current = props.fields.brand_voice_traits ?? [];
@@ -88,7 +93,10 @@ const toggleTrait = (group: string, value: string): void => {
     }
 
     const groupValues = props.availableVoiceTraits[group] ?? [];
-    props.fields.brand_voice_traits = [...current.filter((v) => !groupValues.includes(v)), value];
+    props.fields.brand_voice_traits = [
+        ...current.filter((v) => !groupValues.includes(v)),
+        value,
+    ];
 };
 
 const runAutofill = async () => {
@@ -103,14 +111,20 @@ const runAutofill = async () => {
         autofillHttp.url = url;
         const data = await autofillHttp.post(autofillBrand.url());
 
-        if (data?.name && props.showName && !props.fields.name) props.fields.name = data.name;
-        if (data?.brand_description) props.fields.brand_description = data.brand_description;
-        if (data?.content_language) props.fields.content_language = data.content_language;
+        if (data?.name && props.showName && !props.fields.name)
+            props.fields.name = data.name;
+        if (data?.brand_description)
+            props.fields.brand_description = data.brand_description;
+        if (data?.brand_guidelines && !props.fields.brand_guidelines)
+            props.fields.brand_guidelines = data.brand_guidelines;
+        if (data?.content_language)
+            props.fields.content_language = data.content_language;
         if (data?.brand_voice_traits?.length) {
             props.fields.brand_voice_traits = data.brand_voice_traits;
         }
         if (data?.brand_color) props.fields.brand_color = data.brand_color;
-        if (data?.background_color) props.fields.background_color = data.background_color;
+        if (data?.background_color)
+            props.fields.background_color = data.background_color;
         if (data?.text_color) props.fields.text_color = data.text_color;
         if (data?.logo_url) {
             logoPreview.value = data.logo_url;
@@ -130,7 +144,9 @@ const runAutofill = async () => {
 <template>
     <div class="flex flex-col space-y-6">
         <div class="grid gap-2">
-            <Label for="brand_website">{{ $t('settings.brand.website') }}</Label>
+            <Label for="brand_website">{{
+                $t('settings.brand.website')
+            }}</Label>
             <div :class="autofill ? 'flex gap-2' : ''">
                 <Input
                     id="brand_website"
@@ -146,13 +162,23 @@ const runAutofill = async () => {
                     :disabled="isAutofilling || !fields.brand_website"
                     @click="runAutofill"
                 >
-                    <IconLoader2 v-if="isAutofilling" class="size-4 animate-spin" />
+                    <IconLoader2
+                        v-if="isAutofilling"
+                        class="size-4 animate-spin"
+                    />
                     <IconSparkles v-else class="size-4" />
                     {{ $t('workspaces.create.autofill') }}
                 </Button>
             </div>
-            <p v-if="autofill && logoPreview" class="flex items-center gap-2 text-xs text-muted-foreground">
-                <img :src="logoPreview" alt="" class="h-6 w-6 rounded object-cover" />
+            <p
+                v-if="autofill && logoPreview"
+                class="flex items-center gap-2 text-xs text-muted-foreground"
+            >
+                <img
+                    :src="logoPreview"
+                    alt=""
+                    class="h-6 w-6 rounded object-cover"
+                />
                 {{ $t('workspaces.create.logo_captured') }}
             </p>
             <InputError :message="errors.brand_website" />
@@ -160,23 +186,49 @@ const runAutofill = async () => {
 
         <div v-if="showName" class="grid gap-2">
             <Label for="name">{{ $t('settings.brand.name') }}</Label>
-            <Input id="name" v-model="fields.name" :placeholder="$t('settings.brand.name_placeholder')" />
+            <Input
+                id="name"
+                v-model="fields.name"
+                :placeholder="$t('settings.brand.name_placeholder')"
+            />
             <InputError :message="errors.name" />
         </div>
 
         <div class="grid gap-2">
-            <Label for="brand_description">{{ $t('settings.brand.brand_description') }}</Label>
+            <Label for="brand_description">{{
+                $t('settings.brand.brand_description')
+            }}</Label>
             <Textarea
                 id="brand_description"
                 v-model="fields.brand_description"
-                :placeholder="$t('settings.brand.brand_description_placeholder')"
+                :placeholder="
+                    $t('settings.brand.brand_description_placeholder')
+                "
                 rows="3"
             />
             <InputError :message="errors.brand_description" />
         </div>
 
         <div class="grid gap-2">
-            <Label for="content_language">{{ $t('settings.brand.content_language') }}</Label>
+            <Label for="brand_guidelines">{{
+                $t('settings.brand.guidelines')
+            }}</Label>
+            <Textarea
+                id="brand_guidelines"
+                v-model="fields.brand_guidelines"
+                :placeholder="$t('settings.brand.guidelines_placeholder')"
+                rows="6"
+            />
+            <p class="text-xs font-medium text-foreground/60">
+                {{ $t('settings.brand.guidelines_description') }}
+            </p>
+            <InputError :message="errors.brand_guidelines" />
+        </div>
+
+        <div class="grid gap-2">
+            <Label for="content_language">{{
+                $t('settings.brand.content_language')
+            }}</Label>
             <LanguagePicker
                 v-model="fields.content_language"
                 :options="availableContentLanguages"
@@ -193,13 +245,35 @@ const runAutofill = async () => {
         <div class="grid gap-5">
             <div class="grid gap-1">
                 <Label>{{ $t('settings.brand.voice') }}</Label>
-                <p class="text-xs font-medium text-foreground/60">{{ $t('settings.brand.voice_description') }}</p>
+                <p class="text-xs font-medium text-foreground/60">
+                    {{ $t('settings.brand.voice_description') }}
+                </p>
             </div>
 
-            <div v-for="(values, group) in availableVoiceTraits" :key="group" class="grid gap-2">
-                <Label>{{ $t(`settings.brand.voice_group.${group}`) }}</Label>
-                <FieldGroup class="flex flex-row flex-wrap gap-2 [--radius:9999rem]">
-                    <FieldLabel v-for="value in values" :key="value" :for="`voice-${value}`" class="!w-fit">
+            <div
+                v-for="(values, group) in availableVoiceTraits"
+                :key="group"
+                class="grid gap-2"
+            >
+                <Label class="flex items-center gap-2">
+                    {{ $t(`settings.brand.voice_group.${group}`) }}
+                    <span class="text-xs font-normal text-muted-foreground">
+                        {{
+                            group === 'style'
+                                ? $t('settings.brand.voice_select_any')
+                                : $t('settings.brand.voice_select_one')
+                        }}
+                    </span>
+                </Label>
+                <FieldGroup
+                    class="flex flex-row flex-wrap gap-2 [--radius:9999rem]"
+                >
+                    <FieldLabel
+                        v-for="value in values"
+                        :key="value"
+                        :for="`voice-${value}`"
+                        class="!w-fit"
+                    >
                         <Field
                             orientation="horizontal"
                             class="gap-1.5 overflow-hidden !px-3 !py-1.5 transition-all duration-100 ease-linear group-has-data-[state=checked]/field-label:!px-2"
@@ -210,7 +284,9 @@ const runAutofill = async () => {
                                 class="-ml-6 -translate-x-1 rounded-full opacity-0 transition-all duration-100 ease-linear data-[state=checked]:ml-0 data-[state=checked]:translate-x-0 data-[state=checked]:opacity-100"
                                 @update:model-value="toggleTrait(group, value)"
                             />
-                            <FieldTitle>{{ $t(`settings.brand.voice_trait.${value}`) }}</FieldTitle>
+                            <FieldTitle>{{
+                                $t(`settings.brand.voice_trait.${value}`)
+                            }}</FieldTitle>
                         </Field>
                     </FieldLabel>
                 </FieldGroup>
@@ -218,25 +294,31 @@ const runAutofill = async () => {
             <InputError :message="errors.brand_voice_traits" />
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div v-if="showDefaultVisuals" class="grid gap-4 sm:grid-cols-3">
             <div class="grid gap-2">
-                <Label for="brand_color">{{ $t('settings.brand.brand_color') }}</Label>
+                <Label for="brand_color">{{
+                    $t('settings.brand.brand_color')
+                }}</Label>
                 <HexColorInput v-model="fields.brand_color" />
                 <InputError :message="errors.brand_color" />
             </div>
             <div class="grid gap-2">
-                <Label for="background_color">{{ $t('settings.brand.background_color') }}</Label>
+                <Label for="background_color">{{
+                    $t('settings.brand.background_color')
+                }}</Label>
                 <HexColorInput v-model="fields.background_color" />
                 <InputError :message="errors.background_color" />
             </div>
             <div class="grid gap-2">
-                <Label for="text_color">{{ $t('settings.brand.text_color') }}</Label>
+                <Label for="text_color">{{
+                    $t('settings.brand.text_color')
+                }}</Label>
                 <HexColorInput v-model="fields.text_color" />
                 <InputError :message="errors.text_color" />
             </div>
         </div>
 
-        <div class="grid gap-2">
+        <div v-if="showDefaultVisuals" class="grid gap-2">
             <Label for="brand_font">{{ $t('settings.brand.font') }}</Label>
             <FontPicker
                 v-model="fields.brand_font"
@@ -246,6 +328,46 @@ const runAutofill = async () => {
                 :empty-text="$t('settings.brand.font_empty')"
             />
             <InputError :message="errors.brand_font" />
+        </div>
+
+        <div v-if="showDefaultVisuals" class="grid gap-2">
+            <Label>{{ $t('settings.brand.preview_label') }}</Label>
+            <p class="text-xs font-medium text-foreground/60">
+                {{ $t('settings.brand.preview_description') }}
+            </p>
+            <div
+                class="overflow-hidden rounded-xl border-2 border-foreground shadow-2xs"
+                data-testid="brand-preview"
+                :style="{
+                    backgroundColor: fields.background_color || '#ffffff',
+                    color: fields.text_color || '#0a0a0a',
+                    fontFamily: fields.brand_font
+                        ? `'${fields.brand_font}', sans-serif`
+                        : undefined,
+                }"
+            >
+                <div
+                    class="h-1.5 w-full"
+                    :style="{ backgroundColor: fields.brand_color || '#7c3aed' }"
+                />
+                <div class="space-y-2 p-5">
+                    <p class="text-lg font-bold">
+                        {{ $t('settings.brand.preview_headline') }}
+                    </p>
+                    <p class="text-sm opacity-90">
+                        {{ $t('settings.brand.preview_body') }}
+                    </p>
+                    <span
+                        class="mt-1 inline-block rounded-full px-3 py-1 text-xs font-bold"
+                        :style="{
+                            backgroundColor: fields.brand_color || '#7c3aed',
+                            color: fields.background_color || '#ffffff',
+                        }"
+                    >
+                        {{ $t('settings.brand.preview_cta') }}
+                    </span>
+                </div>
+            </div>
         </div>
 
         <div class="grid gap-2">
@@ -267,7 +389,9 @@ const runAutofill = async () => {
                     ]"
                     @click="fields.image_style = style"
                 >
-                    <div class="relative aspect-square w-full overflow-hidden border-b-2 border-foreground bg-muted">
+                    <div
+                        class="relative aspect-square w-full overflow-hidden border-b-2 border-foreground bg-muted"
+                    >
                         <img
                             :src="`/images/branding/image-styles/${style}.webp`"
                             :alt="$t(`settings.brand.image_style_${style}`)"
@@ -276,7 +400,7 @@ const runAutofill = async () => {
                         />
                         <div
                             v-if="fields.image_style === style"
-                            class="absolute right-2 top-2 flex size-7 items-center justify-center rounded-full border-2 border-foreground bg-primary text-primary-foreground shadow"
+                            class="absolute top-2 right-2 flex size-7 items-center justify-center rounded-full border-2 border-foreground bg-primary text-primary-foreground shadow"
                         >
                             <IconCheck class="size-4" stroke-width="3" />
                         </div>
@@ -284,7 +408,9 @@ const runAutofill = async () => {
                     <span
                         :class="[
                             'block truncate px-3 py-2 text-center text-sm font-semibold',
-                            fields.image_style === style ? 'bg-foreground text-background' : 'bg-card text-foreground',
+                            fields.image_style === style
+                                ? 'bg-foreground text-background'
+                                : 'bg-card text-foreground',
                         ]"
                     >
                         {{ $t(`settings.brand.image_style_${style}`) }}

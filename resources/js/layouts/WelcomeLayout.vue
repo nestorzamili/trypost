@@ -2,7 +2,6 @@
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-import Toast from '@/components/Toast.vue';
 import {
     connect as connectRoute,
     goals as goalsRoute,
@@ -137,6 +136,5 @@ const canNavigateTo = (stepNumber: number): boolean =>
                 <slot />
             </div>
         </div>
-        <Toast />
     </div>
 </template>

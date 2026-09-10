@@ -43,6 +43,22 @@ test('assets index shows assets page', function () {
     $response->assertInertia(fn ($page) => $page->component('assets/Index', false));
 });
 
+test('assets index flags canManageBrandReferences for the owner', function () {
+    $this->actingAs($this->user)
+        ->get(route('app.assets.index'))
+        ->assertInertia(fn ($page) => $page->where('canManageBrandReferences', true));
+});
+
+test('assets index hides brand reference management from members', function () {
+    $member = User::factory()->create(['account_id' => $this->account->id]);
+    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $member->update(['current_workspace_id' => $this->workspace->id]);
+
+    $this->actingAs($member)
+        ->get(route('app.assets.index'))
+        ->assertInertia(fn ($page) => $page->where('canManageBrandReferences', false));
+});
+
 test('assets index requires authentication', function () {
     $response = $this->get(route('app.assets.index'));
 

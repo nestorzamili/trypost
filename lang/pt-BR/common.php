@@ -61,6 +61,13 @@ return [
     'close' => 'Fechar',
     'loading_more' => 'Carregando mais...',
 
+    'pagination' => [
+        'label' => 'Paginação',
+        'previous' => 'Página anterior',
+        'next' => 'Próxima página',
+        'go_to_page' => 'Ir para a página :page',
+    ],
+
     'actions' => [
         'copy' => 'Copiar',
         'copied' => 'Copiado',

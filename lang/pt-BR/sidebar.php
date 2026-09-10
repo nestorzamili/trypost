@@ -29,6 +29,10 @@ return [
     'repurposes' => 'Repost',
     'onboarding' => 'Primeiros passos',
     'onboarding_hint' => 'Complete a configuração',
+    'chat' => 'Assistente de IA',
+    'chat_history' => 'Histórico',
+    'new_chat' => 'Novo chat',
+    'no_chats' => 'Nenhum chat ainda',
     'posts' => [
         'calendar' => 'Calendário',
         'all' => 'Todos',

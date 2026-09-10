@@ -16,7 +16,7 @@ const onboardingProgress = computed<OnboardingProgress | false | undefined>(
 );
 
 const progressPercent = computed(() => {
-    if (! onboardingProgress.value) {
+    if (!onboardingProgress.value) {
         return 0;
     }
 

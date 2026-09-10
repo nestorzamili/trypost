@@ -1,0 +1,156 @@
+name: TryPost IP Deploy Pipeline
+
+# Separate from deploy-prod.yaml (domain + HTTPS). This builds an
+# origin-agnostic image — VITE_REVERB_HOST is left EMPTY so the client resolves
+# the WebSocket host from the page origin (resources/js/echo.ts) — and deploys
+# it for access by raw IP + port using compose.prod.yaml + compose.ip.yaml.
+# It never modifies the production pipeline or its compose file.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Pipeline mode'
+        type: choice
+        required: true
+        default: Build and deploy
+        options:
+          - Build and deploy
+          - Build only
+      app_port:
+        description: 'Host port to publish (http://<ip>:<port>)'
+        type: string
+        required: false
+        default: '8000'
+      platform:
+        description: 'Target image platform'
+        type: choice
+        required: true
+        default: linux/amd64
+        options:
+          - linux/amd64
+          - linux/arm64
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: trypost-ip-deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and push origin-agnostic image
+    runs-on: ${{ inputs.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    timeout-minutes: 20
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      compose_artifact: ${{ steps.image.outputs.compose_artifact }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set image reference
+        id: image
+        env:
+          REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          set -eu
+          SHORT_SHA="${GITHUB_SHA::7}"
+          REGISTRY_IMAGE="${REGISTRY_IMAGE,,}"
+          echo "image=$REGISTRY_IMAGE:ip-$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "compose_artifact=trypost-ip-compose-$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push image (origin-agnostic Reverb)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: production
+          platforms: ${{ inputs.platform }}
+          push: true
+          tags: ${{ steps.image.outputs.image }}
+          cache-from: type=gha,scope=ip-${{ inputs.platform }}
+          cache-to: type=gha,mode=max,scope=ip-${{ inputs.platform }}
+          # VITE_REVERB_HOST intentionally EMPTY -> the client falls back to the
+          # page origin, so this one image serves any ip:port without a rebuild.
+          build-args: |
+            VITE_APP_NAME=TryPost
+            VITE_REVERB_APP_KEY=trypost-reverb-key
+            VITE_REVERB_HOST=
+            VITE_REVERB_PORT=
+            VITE_REVERB_SCHEME=http
+
+      - name: Upload deployment manifests
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.image.outputs.compose_artifact }}
+          path: |
+            compose.prod.yaml
+            compose.ip.yaml
+            scripts/deploy-ip.sh
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy to VM (IP + port)
+    needs: build
+    if: ${{ inputs.mode == 'Build and deploy' }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Download deployment manifests
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.compose_artifact }}
+          path: deployment
+
+      - name: Copy manifests to VM
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: deployment/*
+          target: /opt/trypost
+          overwrite: true
+          strip_components: 1
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          TRYPOST_IMAGE: ${{ needs.build.outputs.image }}
+          APP_PORT: ${{ inputs.app_port }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: TRYPOST_IMAGE,APP_PORT,GHCR_USERNAME,GHCR_TOKEN
+          script: |
+            set -eu
+            cd /opt/trypost
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io \
+              --username "$GHCR_USERNAME" --password-stdin
+            chmod +x scripts/deploy-ip.sh
+            TRYPOST_IMAGE="$TRYPOST_IMAGE" APP_PORT="$APP_PORT" ./scripts/deploy-ip.sh

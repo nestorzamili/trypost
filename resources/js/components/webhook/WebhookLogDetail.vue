@@ -86,7 +86,9 @@ const replayLog = () => {
             </div>
 
             <div class="grid gap-4 sm:grid-cols-3">
-                <div class="rounded-xl border-2 border-foreground bg-background p-3 shadow-2xs">
+                <div
+                    class="rounded-xl border-2 border-foreground bg-background p-3 shadow-2xs"
+                >
                     <p class="text-sm font-bold text-foreground">
                         {{ $t('webhooks.show.http_status') }}
                     </p>
@@ -94,7 +96,9 @@ const replayLog = () => {
                         {{ formatStatusCode(log.response_status) }}
                     </p>
                 </div>
-                <div class="rounded-xl border-2 border-foreground bg-background p-3 shadow-2xs">
+                <div
+                    class="rounded-xl border-2 border-foreground bg-background p-3 shadow-2xs"
+                >
                     <p class="text-sm font-bold text-foreground">
                         {{ $t('webhooks.show.attempts') }}
                     </p>
@@ -102,7 +106,9 @@ const replayLog = () => {
                         {{ log.attempts }}
                     </p>
                 </div>
-                <div class="rounded-xl border-2 border-foreground bg-background p-3 shadow-2xs">
+                <div
+                    class="rounded-xl border-2 border-foreground bg-background p-3 shadow-2xs"
+                >
                     <p class="text-sm font-bold text-foreground">
                         {{ $t('webhooks.show.delivered_at') }}
                     </p>

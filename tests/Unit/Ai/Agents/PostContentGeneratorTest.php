@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Ai\Agents\PostContentGenerator;
 use App\Enums\Ai\GeneratorFormat;
 use App\Enums\Workspace\ContentLanguage;
+use App\Models\BrandVariant;
 use App\Models\Workspace;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 
@@ -59,6 +60,41 @@ test('instructions omit brand description and voice when applyBrandVoice is fals
     expect($instructions)->not->toContain('behind-the-scenes');
     // Language still applies — it isn't part of the brand voice.
     expect($instructions)->toContain('en');
+});
+
+test('instructions inject brand guidelines from the workspace', function () {
+    $workspace = Workspace::factory()->make([
+        'brand_guidelines' => 'Human first, technology second.',
+        'content_language' => 'en',
+    ]);
+
+    expect((new PostContentGenerator(workspace: $workspace))->instructions())
+        ->toContain('Human first, technology second.')
+        ->toContain('<brand_data>');
+});
+
+test('instructions omit brand guidelines when applyBrandVoice is false', function () {
+    $workspace = Workspace::factory()->make([
+        'brand_guidelines' => 'Private brand guidance.',
+        'content_language' => 'en',
+    ]);
+
+    expect((new PostContentGenerator(workspace: $workspace, applyBrandVoice: false))->instructions())
+        ->not->toContain('Private brand guidance.');
+});
+
+test('instructions use the matching language variant typography and Traditional Chinese rules', function () {
+    $workspace = Workspace::factory()->create([
+        'content_language' => 'zh',
+    ]);
+    BrandVariant::factory()->chinese()->create(['workspace_id' => $workspace->id]);
+
+    $instructions = (new PostContentGenerator(workspace: $workspace))->instructions();
+
+    expect($instructions)
+        ->toContain('Traditional Chinese')
+        ->toContain('Noto Serif TC')
+        ->toContain('Noto Sans TC');
 });
 
 test('instructions include current_content when provided', function () {
