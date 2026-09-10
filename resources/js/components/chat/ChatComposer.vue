@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { IconArrowUp, IconPaperclip, IconPlayerStop, IconX } from '@tabler/icons-vue';
+import {
+    IconArrowUp,
+    IconFileSpreadsheet,
+    IconPaperclip,
+    IconPlayerStop,
+    IconX,
+} from '@tabler/icons-vue';
 import { ref } from 'vue';
 
 import { Button } from '@/components/ui/button';
@@ -118,16 +124,18 @@ const removeAttachment = (): void => {
     >
         <div
             v-if="attachment"
-            class="mx-1 flex items-center gap-2 rounded-xl border border-foreground/15 bg-background px-3 py-1.5 text-xs"
+            class="mx-1 inline-flex self-start items-center gap-2 rounded-xl border border-foreground/15 bg-background px-3 py-1.5 text-xs shadow-2xs max-w-xs"
             data-testid="chat-composer-attachment"
         >
-            <IconPaperclip class="size-3.5 shrink-0 text-muted-foreground" />
-            <span class="min-w-0 flex-1 truncate">{{
+            <IconFileSpreadsheet
+                class="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+            />
+            <span class="min-w-0 flex-1 truncate font-medium">{{
                 attachment.filename
             }}</span>
             <button
                 type="button"
-                class="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                class="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                 :aria-label="$t('chat.attachment.remove')"
                 data-testid="chat-composer-attachment-remove"
                 @click="removeAttachment"

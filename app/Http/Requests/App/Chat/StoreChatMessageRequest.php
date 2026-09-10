@@ -26,7 +26,7 @@ class StoreChatMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'message' => ['nullable', 'string', 'max:10000', 'required_without:decisions', 'prohibits:decisions'],
+            'message' => ['nullable', 'string', 'max:60000', 'required_without:decisions', 'prohibits:decisions'],
             'decisions' => ['nullable', 'array', 'required_without:message'],
             'decisions.*' => ['array'],
             'decisions.*.action' => ['required', Rule::in(['approve', 'reject'])],
