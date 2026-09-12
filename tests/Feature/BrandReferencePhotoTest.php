@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     Storage::fake();
@@ -78,6 +79,23 @@ test('an admin can upload a reference with a kind', function () {
         ->assertCreated()
         ->assertJsonPath('meta.kind', BrandReferenceKind::Logo->value)
         ->assertJsonPath('meta.label', 'Company logo');
+});
+
+test('a large brand reference image is optimized with the gentler profile', function () {
+    $file = UploadedFile::fake()->image('reference.jpg', 4000, 3000);
+
+    $response = $this->actingAs($this->user)
+        ->postJson(route('app.workspace.brand-references.store'), ['photo' => $file]);
+
+    $response->assertCreated();
+
+    $media = Media::findOrFail($response->json('id'));
+    $maxWidth = config('trypost.media.upload_optimization.brand_references.max_width');
+    $maxBytes = config('trypost.media.upload_optimization.brand_references.max_bytes');
+
+    expect($media->mime_type)->toBe('image/jpeg')
+        ->and($media->meta['width'])->toBeLessThanOrEqual($maxWidth)
+        ->and($media->size)->toBeLessThanOrEqual($maxBytes);
 });
 
 test('store rejects an invalid kind', function () {
@@ -195,7 +213,7 @@ test('chunked upload targets the brand_references collection', function () {
         [
             'HTTP_CONTENT_RANGE' => 'bytes 0-'.($size - 1).'/'.$size,
             'HTTP_X_FILE_NAME' => 'test.png',
-            'HTTP_X_UPLOAD_ID' => (string) \Illuminate\Support\Str::uuid(),
+            'HTTP_X_UPLOAD_ID' => (string) Str::uuid(),
             'HTTP_X_COLLECTION' => 'brand_references',
             'HTTP_ACCEPT' => 'application/json',
             'CONTENT_TYPE' => 'application/octet-stream',

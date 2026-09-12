@@ -161,6 +161,32 @@ test('cannot delete asset from another workspace', function () {
     $response->assertForbidden();
 });
 
+test('storing a large asset image optimizes it below the profile caps', function () {
+    $file = UploadedFile::fake()->image('dslr.jpg', 4000, 3000);
+
+    $response = $this->actingAs($this->user)
+        ->post(route('app.assets.store'), ['media' => $file]);
+
+    $response->assertCreated();
+
+    $media = Media::firstOrFail();
+    $maxWidth = config('trypost.media.upload_optimization.assets.max_width');
+    $maxBytes = config('trypost.media.upload_optimization.assets.max_bytes');
+
+    expect($media->mime_type)->toBe('image/jpeg')
+        ->and($media->meta['width'])->toBeLessThanOrEqual($maxWidth)
+        ->and($media->size)->toBeLessThanOrEqual($maxBytes);
+});
+
+test('a raw DSLR-sized image over the old 10MB cap is now accepted', function () {
+    $file = UploadedFile::fake()->create('raw.jpg', 15 * 1024, 'image/jpeg');
+
+    $response = $this->actingAs($this->user)
+        ->post(route('app.assets.store'), ['media' => $file]);
+
+    $response->assertCreated();
+});
+
 test('can store asset from url', function () {
     $fakeImage = UploadedFile::fake()->image('photo.jpg', 800, 600);
     $imageContent = file_get_contents($fakeImage->getPathname());

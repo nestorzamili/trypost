@@ -223,5 +223,5 @@ test('every mutating tool the agent exposes extends WorkspaceWriteTool', functio
         ->every(fn (Tool $tool): bool => $tool instanceof WorkspaceWriteTool);
 
     expect($gated)->toBeTrue()
-        ->and(collect($agent->tools())->count())->toBe(31);
+        ->and(collect($agent->tools())->count())->toBe(32);
 });

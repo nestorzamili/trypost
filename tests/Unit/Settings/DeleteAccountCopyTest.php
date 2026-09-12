@@ -28,6 +28,7 @@ $accountDeleteInvitedMemberMarkers = [
     'ru' => 'приглашённые участники',
     'tr' => 'davet edilen üyeler',
     'ar' => 'الأعضاء المدعوون',
+    'ms' => 'ahli yang dijemput',
 ];
 
 /**
@@ -50,6 +51,7 @@ $workspaceDeleteConditionalMemberMarkers = [
     'ru' => 'без другого workspace в TryPost',
     'tr' => 'Başka bir TryPost workspace',
     'ar' => 'مساحة عمل أخرى في TryPost',
+    'ms' => 'Ahli tanpa ruang kerja TryPost lain',
 ];
 
 test('workspace delete members warning describes conditional permanent deletion', function () {

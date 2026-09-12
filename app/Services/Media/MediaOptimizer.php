@@ -12,10 +12,19 @@ use Intervention\Image\Drivers\Imagick\Driver as ImagickDriver;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Interfaces\ImageInterface;
 use RuntimeException;
+use Symfony\Component\Process\ExecutableFinder;
+use Symfony\Component\Process\Process;
 
 class MediaOptimizer
 {
     private const MAX_DECODE_MEMORY_BYTES = 256 * 1024 * 1024;
+
+    /**
+     * Minimum byte size for an embedded RAW preview to be treated as the
+     * full-size camera render rather than a tiny thumbnail (~160×120). Real
+     * previews are hundreds of KB; a few-KB blob is a thumbnail we skip.
+     */
+    private const MIN_PREVIEW_BYTES = 30 * 1024;
 
     private const FIT_BLUR_SIGMA = 55;
 
@@ -70,22 +79,247 @@ class MediaOptimizer
             $image->scaleDown(width: $maxWidth);
         }
 
-        // Encode to target format at the target quality (never reduced)
         $tempFile = tempnam(sys_get_temp_dir(), 'media_opt_');
+        $this->encodeWithinByteBudget($image, $tempFile, $format, $quality, $maxSize, $platform->value);
+
+        return $tempFile;
+    }
+
+    /**
+     * Optimize a still image for a storage collection at upload time. Returns a
+     * temp file path (caller must clean up), or null when the collection has no
+     * optimization profile.
+     */
+    public function optimizeForCollection(string $filePath, string $collection): ?string
+    {
+        $config = config("trypost.media.upload_optimization.{$collection}");
+
+        if (! is_array($config)) {
+            return null;
+        }
+
+        $imageInfo = @getimagesize($filePath);
+        if ($imageInfo !== false && $this->estimatedDecodeMemory($imageInfo) > self::MAX_DECODE_MEMORY_BYTES) {
+            Log::warning('MediaOptimizer: image too large for GD processing, storing as-is', [
+                'width' => $imageInfo[0],
+                'height' => $imageInfo[1],
+                'collection' => $collection,
+            ]);
+
+            return $this->copyToTempFile($filePath);
+        }
+
+        $maxWidth = (int) data_get($config, 'max_width');
+        $maxBytes = (int) data_get($config, 'max_bytes');
+        $quality = (int) data_get($config, 'quality');
+
+        // Minimal-touch: a source that is already JPEG, within the width cap and
+        // under the byte budget is stored byte-for-byte. Decoding + re-encoding
+        // it would inflict generational JPEG loss for zero benefit, so skip it
+        // entirely — no pixel is ever altered unless a conversion or downscale
+        // is genuinely required.
+        $isJpeg = $imageInfo !== false && ($imageInfo[2] ?? null) === IMAGETYPE_JPEG;
+        $withinWidth = $maxWidth <= 0 || ($imageInfo !== false && $imageInfo[0] <= $maxWidth);
+        $withinBytes = @filesize($filePath) <= $maxBytes;
+
+        if ($isJpeg && $withinWidth && $withinBytes) {
+            return $this->copyToTempFile($filePath);
+        }
+
+        $image = $this->manager->decodePath($filePath)->orient();
+
+        if ($maxWidth > 0 && $image->width() > $maxWidth) {
+            $image->scaleDown(width: $maxWidth);
+        }
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'media_opt_');
+        $this->encodeWithinByteBudget($image, $tempFile, 'image/jpeg', $quality, $maxBytes, $collection);
+
+        return $tempFile;
+    }
+
+    /**
+     * Whether this host can decode camera RAW / DNG. Requires ext-imagick,
+     * which is built against ImageMagick + libraw in the project image. GD (the
+     * default driver) cannot read RAW, so callers must gate on this and reject
+     * RAW uploads cleanly when it is false rather than storing a broken file.
+     */
+    public function canDecodeRaw(): bool
+    {
+        return extension_loaded('imagick');
+    }
+
+    /**
+     * Render a camera RAW / DNG source to a JPEG temp file (caller must clean
+     * up). RAW is a negative no social platform accepts, so it is always
+     * converted at ingest. Oriented from EXIF, downscaled to $maxWidth when
+     * given, and encoded at a near-lossless quality.
+     *
+     * Source selection, in order:
+     *  1. The full-size camera-rendered preview embedded in the RAW (extracted
+     *     with exiftool). This is what the phone/camera actually produced —
+     *     tone-mapped, white-balanced, the image the user sees. For
+     *     computational RAW (e.g. Pixel HDR+) this is the ONLY way to match the
+     *     expected look; a raw demosaic of the linear sensor data comes out
+     *     dark and colour-shifted because the vendor's tone pipeline can't be
+     *     reproduced.
+     *  2. Fallback: a libraw demosaic via the `dng:` decoder. The `dng:` prefix
+     *     forces the RAW decoder regardless of filename — assembled chunk
+     *     uploads have no extension, so a bare path would be sniffed as TIFF and
+     *     fail. Used only when no embedded preview exists.
+     *
+     * @throws RuntimeException when the host cannot decode RAW (no ext-imagick).
+     */
+    public function renderRawToJpeg(string $filePath, ?int $maxWidth = null, int $quality = 95): string
+    {
+        if (! $this->canDecodeRaw()) {
+            throw new RuntimeException('Cannot decode RAW image: the imagick extension is not available on this host.');
+        }
+
+        if (! is_file($filePath)) {
+            throw new RuntimeException("Unable to read RAW image for decoding: {$filePath}");
+        }
+
+        $preview = $this->extractEmbeddedPreview($filePath);
+
+        try {
+            $imagick = new \Imagick;
+
+            if ($preview !== null) {
+                $imagick->readImageBlob($preview);
+            } else {
+                $imagick->readImage('dng:'.$filePath);
+            }
+
+            $imagick->setImageFormat('jpeg');
+            $imagick->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
+            $this->applyExifOrientation($imagick);
+
+            if ($maxWidth !== null && $maxWidth > 0 && $imagick->getImageWidth() > $maxWidth) {
+                $imagick->scaleImage($maxWidth, 0);
+            }
+
+            $imagick->setImageCompressionQuality($quality);
+            $imagick->stripImage();
+
+            $tempFile = tempnam(sys_get_temp_dir(), 'media_raw_');
+            $imagick->writeImage($tempFile);
+            $imagick->clear();
+
+            return $tempFile;
+        } catch (\ImagickException $e) {
+            throw new RuntimeException("Failed to decode RAW image: {$e->getMessage()}", previous: $e);
+        }
+    }
+
+    /**
+     * Extract the largest camera-rendered JPEG preview embedded in a RAW file
+     * via exiftool, or null when exiftool is unavailable or the file carries no
+     * usable preview. Cameras store the preview under different tags —
+     * PreviewImage (DNG/Nikon), JpgFromRaw (Canon CR2), OtherImage — so each is
+     * tried in turn and the first that yields real JPEG bytes wins.
+     */
+    private function extractEmbeddedPreview(string $filePath): ?string
+    {
+        if (! $this->canExtractRawPreview()) {
+            return null;
+        }
+
+        foreach (['JpgFromRaw', 'PreviewImage', 'OtherImage'] as $tag) {
+            $process = new Process(['exiftool', '-b', "-{$tag}", $filePath]);
+            $process->run();
+
+            if (! $process->isSuccessful()) {
+                continue;
+            }
+
+            $bytes = $process->getOutput();
+
+            // A real embedded preview is a JPEG (starts with the SOI marker).
+            // Guard against empty output and against tiny thumbnails masquerading
+            // as previews.
+            if (strlen($bytes) >= self::MIN_PREVIEW_BYTES && str_starts_with($bytes, "\xFF\xD8\xFF")) {
+                return $bytes;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the exiftool binary is on PATH for embedded-preview extraction.
+     */
+    public function canExtractRawPreview(): bool
+    {
+        return (new ExecutableFinder)->find('exiftool') !== null;
+    }
+
+    /**
+     * Bake the EXIF orientation into the pixels and reset the flag, so the JPEG
+     * renders upright everywhere. Uses Imagick::autoOrient() when the binding
+     * exposes it, otherwise applies the rotation/flip for the orientation tag
+     * by hand — the method name has moved across Imagick versions.
+     */
+    private function applyExifOrientation(\Imagick $imagick): void
+    {
+        if (method_exists($imagick, 'autoOrient')) {
+            $imagick->autoOrient();
+
+            return;
+        }
+
+        $orientation = $imagick->getImageOrientation();
+        $white = new \ImagickPixel('#ffffff');
+
+        match ($orientation) {
+            \Imagick::ORIENTATION_TOPRIGHT => $imagick->flopImage(),
+            \Imagick::ORIENTATION_BOTTOMRIGHT => $imagick->rotateImage($white, 180),
+            \Imagick::ORIENTATION_BOTTOMLEFT => $imagick->flipImage(),
+            \Imagick::ORIENTATION_LEFTTOP => (function () use ($imagick, $white): void {
+                $imagick->flopImage();
+                $imagick->rotateImage($white, 90);
+            })(),
+            \Imagick::ORIENTATION_RIGHTTOP => $imagick->rotateImage($white, 90),
+            \Imagick::ORIENTATION_RIGHTBOTTOM => (function () use ($imagick, $white): void {
+                $imagick->flopImage();
+                $imagick->rotateImage($white, 270);
+            })(),
+            \Imagick::ORIENTATION_LEFTBOTTOM => $imagick->rotateImage($white, 270),
+            default => null,
+        };
+
+        $imagick->setImageOrientation(\Imagick::ORIENTATION_TOPLEFT);
+    }
+
+    /**
+     * Copy a source file to a fresh temp file (caller must clean up), used when
+     * the source is stored unchanged.
+     */
+    private function copyToTempFile(string $filePath): string
+    {
+        $tempFile = tempnam(sys_get_temp_dir(), 'media_opt_');
+        copy($filePath, $tempFile);
+
+        return $tempFile;
+    }
+
+    /**
+     * Encode to a temp file at the given quality, then iteratively shrink
+     * dimensions by 10% per step until the result fits the byte budget, down to
+     * a 100px safety floor.
+     */
+    private function encodeWithinByteBudget(ImageInterface $image, string $tempFile, string $format, int $quality, int $maxSize, string $context): void
+    {
         $encoded = $image->encodeUsingMediaType($format, quality: $quality);
         file_put_contents($tempFile, (string) $encoded);
 
-        // If still above the platform size budget, iteratively shrink DIMENSIONS
-        // (not quality) by 10 % per step until it fits. Postiz-style, preserves
-        // pixel quality while lowering the byte count.
         while (filesize($tempFile) > $maxSize) {
             $newWidth = (int) ($image->width() * 0.9);
             $newHeight = (int) ($image->height() * 0.9);
 
-            // Safety floor: don't shrink below 100 px on the longer side.
             if ($newWidth < 100 || $newHeight < 100) {
-                Log::warning('MediaOptimizer: image cannot fit platform size budget', [
-                    'platform' => $platform->value,
+                Log::warning('MediaOptimizer: image cannot fit size budget', [
+                    'context' => $context,
                     'final_width' => $image->width(),
                     'final_height' => $image->height(),
                     'final_bytes' => filesize($tempFile),
@@ -98,8 +332,6 @@ class MediaOptimizer
             $encoded = $image->encodeUsingMediaType($format, quality: $quality);
             file_put_contents($tempFile, (string) $encoded);
         }
-
-        return $tempFile;
     }
 
     /**

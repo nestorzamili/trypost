@@ -120,11 +120,32 @@ return [
 
     'media' => [
         'max_size_mb' => [
-            'image' => (int) env('MEDIA_IMAGE_MAX_SIZE_MB', 10),
+            'image' => (int) env('MEDIA_IMAGE_MAX_SIZE_MB', 50),
             'video' => (int) env('MEDIA_VIDEO_MAX_SIZE_MB', 1024),
             // LinkedIn caps document (PDF carousel) uploads at 100MB.
             'document' => (int) env('MEDIA_DOCUMENT_MAX_SIZE_MB', 100),
         ],
+
+        // Upload-time image handling per collection. The optimizer is
+        // minimal-touch: a source that is already JPEG, within max_width and
+        // under max_bytes is stored byte-for-byte (no re-encode, no quality
+        // loss). Re-encoding only happens when a format conversion or a
+        // downscale is genuinely required, and then at a high, near-lossless
+        // quality. max_bytes is a safety net that shrinks dimensions (never
+        // quality) if an image is still too large after conversion/resize.
+        'upload_optimization' => [
+            'assets' => [
+                'max_width' => (int) env('MEDIA_ASSETS_MAX_WIDTH', 2048),
+                'quality' => (int) env('MEDIA_ASSETS_QUALITY', 95),
+                'max_bytes' => (int) env('MEDIA_ASSETS_MAX_BYTES', 10 * 1024 * 1024),
+            ],
+            'brand_references' => [
+                'max_width' => (int) env('MEDIA_BRAND_REFERENCES_MAX_WIDTH', 2048),
+                'quality' => (int) env('MEDIA_BRAND_REFERENCES_QUALITY', 95),
+                'max_bytes' => (int) env('MEDIA_BRAND_REFERENCES_MAX_BYTES', 10 * 1024 * 1024),
+            ],
+        ],
+
         'signed_upload_url_ttl_minutes' => (int) (env('MEDIA_SIGNED_UPLOAD_URL_TTL_MINUTES') ?? env('MCP_UPLOAD_URL_TTL_MINUTES', 15)),
         'signed_upload_per_workspace_per_minute' => (int) env('MEDIA_SIGNED_UPLOAD_PER_WORKSPACE_PER_MINUTE', 60),
         'signed_upload_per_ip_per_minute' => (int) env('MEDIA_SIGNED_UPLOAD_PER_IP_PER_MINUTE', 1200),

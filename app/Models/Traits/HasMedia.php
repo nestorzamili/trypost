@@ -8,6 +8,7 @@ use App\Enums\Media\Type;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\Media\MediaOptimizer;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
@@ -80,13 +81,12 @@ trait HasMedia
         $mimeType = $file->getMimeType();
         $type = $this->getMediaType($mimeType);
 
-        // Normalize non-JPEG still images to JPEG q100 for universal platform compatibility.
-        // GIF is preserved (animation kept for X/Bluesky/Mastodon).
         [$normalizedBytes, $normalizedMime, $normalizedExt] = $this->normalizeImageFormat(
             $file->getPathname(),
             $mimeType,
             $type,
             $file->getClientOriginalExtension(),
+            $collection,
         );
 
         $filename = Str::uuid().'.'.$normalizedExt;
@@ -130,7 +130,7 @@ trait HasMedia
         $extension = pathinfo($originalFilename, PATHINFO_EXTENSION);
 
         $stored = $type === Type::Image->value
-            ? $this->storeImageFromPath($filePath, $mimeType, $type, $extension, $meta)
+            ? $this->storeImageFromPath($filePath, $mimeType, $type, $extension, $meta, $collection)
             : $this->streamFileToStorage($filePath, $mimeType, $extension, $meta);
 
         return $this->media()->create([
@@ -195,13 +195,14 @@ trait HasMedia
      * @param  array<string, mixed>  $meta
      * @return array{path: string, mime_type: string, size: int, meta: array<string, mixed>}
      */
-    private function storeImageFromPath(string $filePath, string $mimeType, string $type, string $extension, array $meta): array
+    private function storeImageFromPath(string $filePath, string $mimeType, string $type, string $extension, array $meta, string $collection): array
     {
         [$bytes, $storedMime, $storedExt] = $this->normalizeImageFormat(
             $filePath,
             $mimeType,
             $type,
             $extension,
+            $collection,
         );
 
         $filename = Str::uuid().".{$storedExt}";
@@ -297,19 +298,31 @@ trait HasMedia
     }
 
     /**
-     * Convert PNG/WebP/HEIC/AVIF to JPEG at q100 (keeps dimensions). GIF and
-     * JPEG are returned untouched. Non-image types are passed through.
-     *
      * @return array{0: string, 1: string, 2: string} [bytes, mime_type, extension]
      */
-    private function normalizeImageFormat(string $filePath, string $mimeType, string $type, string $originalExtension): array
+    private function normalizeImageFormat(string $filePath, string $mimeType, string $type, string $originalExtension, string $collection): array
     {
         if ($type !== 'image') {
             return [file_get_contents($filePath), $mimeType, $originalExtension];
         }
 
-        // Formats that publish safely everywhere (JPEG is universal, GIF needed for X/Bluesky/Mastodon).
-        if (in_array($mimeType, ['image/jpeg', 'image/jpg', 'image/gif'], true)) {
+        if ($mimeType === 'image/gif') {
+            return [file_get_contents($filePath), $mimeType, $originalExtension];
+        }
+
+        if (Type::isRaw($mimeType, $originalExtension)) {
+            return $this->renderRawImage($filePath, $collection);
+        }
+
+        if ($this->collectionOptimizesImages($collection)) {
+            $optimized = $this->optimizeImageForCollection($filePath, $collection);
+
+            if ($optimized !== null) {
+                return $optimized;
+            }
+        }
+
+        if (in_array($mimeType, ['image/jpeg', 'image/jpg'], true)) {
             return [file_get_contents($filePath), $mimeType, $originalExtension];
         }
 
@@ -325,6 +338,65 @@ trait HasMedia
             ]);
 
             return [file_get_contents($filePath), $mimeType, $originalExtension];
+        }
+    }
+
+    /**
+     * Decode a camera RAW / DNG source to JPEG at ingest. When the collection
+     * has an optimization profile the rendered JPEG is then run through it
+     * (width cap + byte budget); otherwise the near-lossless render is stored.
+     *
+     * @return array{0: string, 1: string, 2: string} [bytes, mime_type, extension]
+     */
+    private function renderRawImage(string $filePath, string $collection): array
+    {
+        $optimizer = app(MediaOptimizer::class);
+        $renderedPath = $optimizer->renderRawToJpeg($filePath);
+
+        try {
+            if ($this->collectionOptimizesImages($collection)) {
+                $optimized = $this->optimizeImageForCollection($renderedPath, $collection);
+
+                if ($optimized !== null) {
+                    return $optimized;
+                }
+            }
+
+            return [file_get_contents($renderedPath), 'image/jpeg', 'jpg'];
+        } finally {
+            @unlink($renderedPath);
+        }
+    }
+
+    private function collectionOptimizesImages(string $collection): bool
+    {
+        return is_array(config("trypost.media.upload_optimization.{$collection}"));
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: string}|null [bytes, mime_type, extension]
+     */
+    private function optimizeImageForCollection(string $filePath, string $collection): ?array
+    {
+        try {
+            $optimizedPath = app(MediaOptimizer::class)->optimizeForCollection($filePath, $collection);
+
+            if ($optimizedPath === null) {
+                return null;
+            }
+
+            try {
+                return [file_get_contents($optimizedPath), 'image/jpeg', 'jpg'];
+            } finally {
+                @unlink($optimizedPath);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('HasMedia: image optimization failed, falling back to normalization', [
+                'collection' => $collection,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
         }
     }
 }
