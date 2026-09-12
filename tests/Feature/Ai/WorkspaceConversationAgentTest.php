@@ -22,6 +22,7 @@ test('the agent exposes the post plus workspace tools', function () {
         'generate_post',
         'retry_post_images',
         'create_post',
+        'create_posts_from_briefs',
         'update_post',
         'schedule_post',
         'publish_post',

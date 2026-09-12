@@ -12,6 +12,26 @@ export const MediaType = {
 
 export type MediaType = (typeof MediaType)[keyof typeof MediaType];
 
+/**
+ * Camera RAW / DNG extensions accepted on upload — mirrors Type::RAW_EXTENSIONS.
+ * The OS rarely reports a specific RAW MIME, so these feed the file picker's
+ * `accept` list as extensions; the server decodes them to JPEG at ingest.
+ */
+export const RAW_EXTENSIONS = [
+    'dng',
+    'cr2',
+    'cr3',
+    'crw',
+    'nef',
+    'nrw',
+    'arw',
+    'rw2',
+    'orf',
+    'raf',
+    'pef',
+    'srw',
+] as const;
+
 /** MIME allow-list we accept on upload — mirrors Type::allowedMimeTypes(). */
 export const ALLOWED_MIME_TYPES: Record<MediaType, readonly string[]> = {
     [MediaType.Image]: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
@@ -31,15 +51,23 @@ const IMAGE_EXTENSIONS = [
     'svg',
     'heic',
     'heif',
+    ...RAW_EXTENSIONS,
 ];
 const VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'wmv', 'webm', 'mkv', 'm4v'];
 
 const GIF_MIME = 'image/gif';
 const PDF_MIME = 'application/pdf';
 
-/** The `accept` attribute value for a file input that takes any media we allow. */
+/**
+ * The `accept` attribute value for a file input that takes any media we allow.
+ * Includes RAW as dotted extensions (`.dng`, …) alongside the MIME types, since
+ * browsers cannot match RAW by MIME (the OS reports it generically).
+ */
 export const acceptAttribute = (): string =>
-    Object.values(ALLOWED_MIME_TYPES).flat().join(',');
+    [
+        ...Object.values(ALLOWED_MIME_TYPES).flat(),
+        ...RAW_EXTENSIONS.map((ext) => `.${ext}`),
+    ].join(',');
 
 /** The structural shape every classifiable media item satisfies. */
 interface ClassifiableMedia {

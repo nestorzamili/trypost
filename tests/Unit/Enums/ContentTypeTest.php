@@ -212,8 +212,8 @@ test('media rules preserve pre-centralization editor limits for mapped types', f
             'requires_media' => true,
             'accepts_gif' => false,
             'max_files' => 1,
-            // Platform advertises 20MB; hard image cap is typically 10MB.
-            'max_image_bytes' => $hardImage,
+            // Platform advertises 20MB, capped at the global image hard limit.
+            'max_image_bytes' => min(20 * $mb, $hardImage),
         ],
         'facebook_post' => [
             'requires_media' => false,
@@ -281,7 +281,7 @@ test('media byte caps never exceed the global upload hard limits', function () {
     }
 
     expect(ContentType::YouTubeShort->maxVideoBytes())->toBe($hardVideo)
-        ->and(ContentType::PinterestPin->maxImageBytes())->toBe($hardImage)
+        ->and(ContentType::PinterestPin->maxImageBytes())->toBe(min(20 * 1024 * 1024, $hardImage))
         ->and(ContentType::FacebookPost->maxVideoBytes())->toBe($hardVideo);
 });
 

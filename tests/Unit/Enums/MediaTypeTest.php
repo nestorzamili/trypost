@@ -101,3 +101,39 @@ test('isGif only matches the gif mime', function () {
     expect(Type::isGif('image/png'))->toBeFalse();
     expect(Type::isGif(null))->toBeFalse();
 });
+
+test('image allow-list and extensions include camera RAW formats', function () {
+    expect(Type::Image->allowedMimeTypes())->toContain('image/x-adobe-dng', 'image/x-canon-cr2', 'image/x-nikon-nef');
+
+    foreach (['dng', 'cr2', 'cr3', 'nef', 'arw', 'rw2', 'orf', 'raf', 'pef', 'srw'] as $ext) {
+        expect(Type::Image->extensions())->toContain($ext);
+    }
+});
+
+test('isRaw matches RAW by mime or bare extension only', function () {
+    expect(Type::isRaw('image/x-adobe-dng'))->toBeTrue()
+        ->and(Type::isRaw(null, 'CR2'))->toBeTrue()
+        ->and(Type::isRaw(null, 'dng'))->toBeTrue()
+        ->and(Type::isRaw('image/jpeg', 'jpg'))->toBeFalse()
+        ->and(Type::isRaw(null, 'png'))->toBeFalse()
+        ->and(Type::isRaw(null, null))->toBeFalse();
+});
+
+test('classify resolves a RAW upload reported as octet-stream to an image', function () {
+    // Most RAW files arrive with a generic OS-reported MIME; the extension
+    // disambiguates them into an image.
+    expect(Type::classify('application/octet-stream', 'shot.dng'))->toBe(Type::Image)
+        ->and(Type::classify('application/octet-stream', 'shot.nef'))->toBe(Type::Image)
+        ->and(Type::classify('image/x-adobe-dng', 'shot.dng'))->toBe(Type::Image);
+});
+
+test('classify still returns null for a concrete unsupported mime even with a known extension', function () {
+    expect(Type::classify('application/zip', 'shot.dng'))->toBeNull();
+});
+
+test('fromExtension classifies every RAW extension as an image', function () {
+    foreach (Type::RAW_EXTENSIONS as $ext) {
+        expect(Type::fromExtension($ext))->toBe(Type::Image, "expected {$ext} to be an image");
+        expect(Type::fromExtension(strtoupper($ext)))->toBe(Type::Image, "expected {$ext} upper to be an image");
+    }
+});

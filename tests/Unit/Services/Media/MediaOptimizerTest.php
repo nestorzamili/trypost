@@ -6,6 +6,7 @@ use App\Enums\SocialAccount\Platform;
 use App\Services\Media\MediaOptimizer;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
+use Symfony\Component\Process\ExecutableFinder;
 
 function createTestImage(int $width, int $height, string $format = 'image/jpeg', string $fill = 'cccccc'): string
 {
@@ -14,6 +15,21 @@ function createTestImage(int $width, int $height, string $format = 'image/jpeg',
     $tempFile = tempnam(sys_get_temp_dir(), 'test_img_');
     $encoded = $image->encodeUsingMediaType($format);
     file_put_contents($tempFile, (string) $encoded);
+
+    return $tempFile;
+}
+
+function createNoisyJpeg(int $width, int $height): string
+{
+    $gd = imagecreatetruecolor($width, $height);
+    for ($x = 0; $x < $width; $x++) {
+        for ($y = 0; $y < $height; $y++) {
+            imagesetpixel($gd, $x, $y, imagecolorallocate($gd, random_int(0, 255), random_int(0, 255), random_int(0, 255)));
+        }
+    }
+    $tempFile = tempnam(sys_get_temp_dir(), 'noisy_img_');
+    imagejpeg($gd, $tempFile, 100);
+    imagedestroy($gd);
 
     return $tempFile;
 }
@@ -345,3 +361,141 @@ it('refuses to crop an image whose dimensions exceed the memory budget', functio
     expect(fn () => $optimizer->cropToAspectRatio($huge, 0.8))
         ->toThrow(RuntimeException::class, 'exceed the safe processing budget');
 });
+
+it('optimizes an oversized asset image down to the profile width and byte budget', function () use (&$tempFiles) {
+    $source = createTestImage(4000, 3000, 'image/jpeg', 'aabbcc');
+    $tempFiles[] = $source;
+
+    $optimizer = new MediaOptimizer;
+    $result = $optimizer->optimizeForCollection($source, 'assets');
+    $tempFiles[] = $result;
+
+    expect($result)->not->toBeNull();
+
+    $manager = new ImageManager(Driver::class);
+    $optimized = $manager->decodePath($result);
+
+    expect($optimized->width())->toBeLessThanOrEqual(config('trypost.media.upload_optimization.assets.max_width'))
+        ->and(filesize($result))->toBeLessThanOrEqual(config('trypost.media.upload_optimization.assets.max_bytes'));
+
+    $bytes = file_get_contents($result);
+    expect(ord($bytes[0]))->toBe(0xFF)
+        ->and(ord($bytes[1]))->toBe(0xD8); // JPEG SOI
+});
+
+it('does not upscale an asset image smaller than the profile width', function () use (&$tempFiles) {
+    $source = createTestImage(800, 600, 'image/jpeg');
+    $tempFiles[] = $source;
+
+    $optimizer = new MediaOptimizer;
+    $result = $optimizer->optimizeForCollection($source, 'assets');
+    $tempFiles[] = $result;
+
+    $manager = new ImageManager(Driver::class);
+    $optimized = $manager->decodePath($result);
+
+    expect($optimized->width())->toBe(800);
+});
+
+it('stores an in-budget jpeg byte-for-byte without re-encoding', function () use (&$tempFiles) {
+    // A source already JPEG, within the width cap and under the byte budget is
+    // never re-encoded — its bytes are preserved exactly, for every collection.
+    $source = createNoisyJpeg(1200, 900);
+    $tempFiles[] = $source;
+
+    $optimizer = new MediaOptimizer;
+
+    $assetResult = $optimizer->optimizeForCollection($source, 'assets');
+    $tempFiles[] = $assetResult;
+    $referenceResult = $optimizer->optimizeForCollection($source, 'brand_references');
+    $tempFiles[] = $referenceResult;
+
+    expect(file_get_contents($assetResult))->toBe(file_get_contents($source))
+        ->and(file_get_contents($referenceResult))->toBe(file_get_contents($source));
+});
+
+it('returns null for a collection without an optimization profile', function () use (&$tempFiles) {
+    $source = createTestImage(3000, 2000);
+    $tempFiles[] = $source;
+
+    $optimizer = new MediaOptimizer;
+
+    expect($optimizer->optimizeForCollection($source, 'logo'))->toBeNull()
+        ->and($optimizer->optimizeForCollection($source, 'avatar'))->toBeNull();
+});
+
+it('stores a huge-dimension asset image as-is rather than exhausting memory', function () use (&$tempFiles) {
+    $huge = createHugeHeaderImage(20000, 20000);
+    $tempFiles[] = $huge;
+
+    $optimizer = new MediaOptimizer;
+    $result = $optimizer->optimizeForCollection($huge, 'assets');
+    $tempFiles[] = $result;
+
+    expect($result)->not->toBeNull()
+        ->and(file_exists($result))->toBeTrue()
+        ->and(filesize($result))->toBe(filesize($huge));
+});
+
+it('reports RAW decode capability from the imagick extension', function () {
+    expect((new MediaOptimizer)->canDecodeRaw())->toBe(extension_loaded('imagick'));
+});
+
+it('reports embedded-preview capability from the exiftool binary', function () {
+    $hasExiftool = (new ExecutableFinder)->find('exiftool') !== null;
+
+    expect((new MediaOptimizer)->canExtractRawPreview())->toBe($hasExiftool);
+});
+
+it('refuses to render RAW when the imagick extension is unavailable', function () use (&$tempFiles) {
+    $source = createTestImage(100, 100);
+    $tempFiles[] = $source;
+
+    expect(fn () => (new MediaOptimizer)->renderRawToJpeg($source))
+        ->toThrow(RuntimeException::class, 'imagick extension is not available');
+})->skip(extension_loaded('imagick'), 'Runs only on hosts without ext-imagick.');
+
+it('surfaces a clear error when the source is not decodable RAW', function () use (&$tempFiles) {
+    // The garbage bytes are named with no extension, so this also proves the
+    // decoder does not silently succeed on a non-RAW file via format sniffing.
+    $bad = tempnam(sys_get_temp_dir(), 'not_raw_');
+    file_put_contents($bad, 'this is definitely not a camera raw file');
+    $tempFiles[] = $bad;
+
+    expect(fn () => (new MediaOptimizer)->renderRawToJpeg($bad))
+        ->toThrow(RuntimeException::class, 'Failed to decode RAW image');
+})->skip(! extension_loaded('imagick'), 'RAW decoding requires ext-imagick.');
+
+it('renders a real RAW file to a JPEG regardless of filename, using the bright embedded preview', function () use (&$tempFiles) {
+    // Regression guards, both proven against a real Pixel DNG:
+    //  1. Assembled chunk uploads land in an EXTENSIONLESS temp file, so the
+    //     converter must not rely on the filename to pick the decoder.
+    //  2. Computational RAW (Pixel HDR+) stores dark linear sensor data; a plain
+    //     demosaic comes out ~13% brightness and colour-shifted. renderRawToJpeg
+    //     must prefer the camera-rendered embedded preview, which is bright and
+    //     correct. We assert brightness well above the dark-demosaic floor.
+    // Needs a real camera RAW fixture — synthetic DNGs are not decodable.
+    $fixture = __DIR__.'/../../../fixtures/sample.dng';
+
+    if (! is_file($fixture)) {
+        $this->markTestSkipped('Provide tests/fixtures/sample.dng (a small real camera RAW) to run this.');
+    }
+
+    $extensionless = tempnam(sys_get_temp_dir(), 'raw_noext_');
+    copy($fixture, $extensionless);
+    $tempFiles[] = $extensionless;
+
+    $optimizer = new MediaOptimizer;
+    $result = $optimizer->renderRawToJpeg($extensionless, maxWidth: 2048);
+    $tempFiles[] = $result;
+
+    $bytes = file_get_contents($result);
+    $decoded = (new Imagick);
+    $decoded->readImageBlob($bytes);
+    $brightness = ($decoded->getImageChannelMean(Imagick::CHANNEL_ALL)['mean'] ?? 0) / 65535;
+
+    expect(ord($bytes[0]))->toBe(0xFF)
+        ->and(ord($bytes[1]))->toBe(0xD8) // JPEG SOI
+        ->and($decoded->getImageWidth())->toBeLessThanOrEqual(2048)
+        ->and($brightness)->toBeGreaterThan(0.20); // preview-bright, not dark demosaic
+})->skip(! extension_loaded('imagick'), 'RAW rendering requires ext-imagick.');

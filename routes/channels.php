@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Broadcasting\PostChannel;
+use App\Broadcasting\UserAiCaptionChannel;
 use App\Broadcasting\UserAiCreationChannel;
 use App\Broadcasting\UserAiGenerationChannel;
 use App\Broadcasting\UserAiMediaRegenerationChannel;
@@ -24,3 +25,5 @@ Broadcast::channel('user.{owner}.ai-gen.{generationId}', UserAiGenerationChannel
 Broadcast::channel('user.{owner}.ai-creation.{creationId}', UserAiCreationChannel::class);
 
 Broadcast::channel('user.{owner}.ai-media.{regenerationId}', UserAiMediaRegenerationChannel::class);
+
+Broadcast::channel('user.{owner}.ai-caption.{regenerationId}', UserAiCaptionChannel::class);

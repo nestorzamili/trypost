@@ -8,9 +8,15 @@ use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 beforeEach(function () {
-    Storage::fake();
+    // Fake the default ('public') disk that HasMedia writes to. Faking it fresh
+    // each test resets the backing directory, so stored files from a prior test
+    // in the same process can't leak in — the source of the intermittent
+    // Storage::assertExists flake when this file ran alongside others.
+    Storage::fake('public');
 });
 
 test('model can get media relationship', function () {
@@ -384,4 +390,116 @@ test('client meta is merged into media meta', function () {
     expect($media->meta)->toHaveKey('duration', 12.5)
         ->and($media->meta)->toHaveKey('width')
         ->and($media->meta)->toHaveKey('height');
+});
+
+function makeLargeJpeg(int $width, int $height, string $fill = 'aabbcc'): string
+{
+    $manager = new ImageManager(Driver::class);
+    $image = $manager->createImage($width, $height)->fill($fill);
+    $tempFile = tempnam(sys_get_temp_dir(), 'hasmedia_');
+    file_put_contents($tempFile, (string) $image->encodeUsingMediaType('image/jpeg'));
+
+    return $tempFile;
+}
+
+function makeNoisyJpeg(int $width, int $height): string
+{
+    $gd = imagecreatetruecolor($width, $height);
+    for ($x = 0; $x < $width; $x++) {
+        for ($y = 0; $y < $height; $y++) {
+            imagesetpixel($gd, $x, $y, imagecolorallocate($gd, random_int(0, 255), random_int(0, 255), random_int(0, 255)));
+        }
+    }
+    $tempFile = tempnam(sys_get_temp_dir(), 'hasmedia_noisy_');
+    imagejpeg($gd, $tempFile, 100);
+    imagedestroy($gd);
+
+    return $tempFile;
+}
+
+test('large asset image is downscaled to the profile width on addMediaFromPath', function () {
+    $workspace = Workspace::factory()->create();
+    $temp = makeLargeJpeg(4000, 3000);
+
+    try {
+        $media = $workspace->addMediaFromPath($temp, 'photo.jpg', 'assets', mimeType: 'image/jpeg');
+    } finally {
+        @unlink($temp);
+    }
+
+    $maxWidth = config('trypost.media.upload_optimization.assets.max_width');
+    $maxBytes = config('trypost.media.upload_optimization.assets.max_bytes');
+
+    expect($media->mime_type)->toBe('image/jpeg')
+        ->and($media->meta['width'])->toBeLessThanOrEqual($maxWidth)
+        ->and($media->size)->toBeLessThanOrEqual($maxBytes);
+});
+
+test('large logo image is NOT resized (collection has no optimization profile)', function () {
+    $workspace = Workspace::factory()->create();
+    $temp = makeLargeJpeg(4000, 3000);
+
+    try {
+        $media = $workspace->addMediaFromPath($temp, 'logo.jpg', 'logo', mimeType: 'image/jpeg');
+    } finally {
+        @unlink($temp);
+    }
+
+    expect($media->meta['width'])->toBe(4000);
+});
+
+test('an in-budget jpeg is stored losslessly for both assets and brand references', function () {
+    $workspace = Workspace::factory()->create();
+
+    $source = makeNoisyJpeg(1200, 900);
+    $sourceBytes = file_get_contents($source);
+    $assetTemp = tempnam(sys_get_temp_dir(), 'hasmedia_a_');
+    $referenceTemp = tempnam(sys_get_temp_dir(), 'hasmedia_r_');
+    copy($source, $assetTemp);
+    copy($source, $referenceTemp);
+
+    try {
+        $asset = $workspace->addMediaFromPath($assetTemp, 'a.jpg', 'assets', mimeType: 'image/jpeg');
+        $reference = $workspace->addMediaFromPath($referenceTemp, 'r.jpg', 'brand_references', mimeType: 'image/jpeg');
+    } finally {
+        @unlink($source);
+        @unlink($assetTemp);
+        @unlink($referenceTemp);
+    }
+
+    // Neither collection re-encodes an already-in-budget JPEG: the stored bytes
+    // match the source exactly, so no generational quality loss occurs.
+    expect($asset->size)->toBe(strlen($sourceBytes))
+        ->and($reference->size)->toBe(strlen($sourceBytes))
+        ->and(Storage::get($asset->path))->toBe($sourceBytes)
+        ->and(Storage::get($reference->path))->toBe($sourceBytes);
+});
+
+test('GIF in assets is preserved as GIF (never optimized)', function () {
+    $workspace = Workspace::factory()->create();
+    $file = UploadedFile::fake()->image('anim.gif', 200, 150);
+
+    $media = $workspace->addMedia($file, 'assets');
+
+    expect($media->mime_type)->toBe('image/gif')
+        ->and(pathinfo($media->path, PATHINFO_EXTENSION))->toBe('gif');
+});
+
+test('large PNG in assets becomes JPEG and is downscaled', function () {
+    $workspace = Workspace::factory()->create();
+
+    $manager = new ImageManager(Driver::class);
+    $image = $manager->createImage(3000, 2000)->fill('cc8844');
+    $temp = tempnam(sys_get_temp_dir(), 'hasmedia_png_');
+    file_put_contents($temp, (string) $image->encodeUsingMediaType('image/png'));
+
+    try {
+        $media = $workspace->addMediaFromPath($temp, 'photo.png', 'assets', mimeType: 'image/png');
+    } finally {
+        @unlink($temp);
+    }
+
+    expect($media->mime_type)->toBe('image/jpeg')
+        ->and(pathinfo($media->path, PATHINFO_EXTENSION))->toBe('jpg')
+        ->and($media->meta['width'])->toBeLessThanOrEqual(config('trypost.media.upload_optimization.assets.max_width'));
 });

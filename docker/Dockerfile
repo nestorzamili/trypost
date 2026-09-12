@@ -36,6 +36,12 @@ RUN apk add --no-cache \
         oniguruma-dev \
         icu-dev \
         linux-headers \
+        imagemagick \
+        imagemagick-libs \
+        libraw \
+        libraw-tools \
+        exiftool \
+        imagemagick-dev \
         $PHPIZE_DEPS \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-avif \
     && docker-php-ext-install -j"$(nproc)" \
@@ -50,9 +56,9 @@ RUN apk add --no-cache \
         pcntl \
         intl \
         sockets \
-    && pecl install redis \
-    && docker-php-ext-enable redis \
-    && apk del $PHPIZE_DEPS \
+    && pecl install redis imagick \
+    && docker-php-ext-enable redis imagick \
+    && apk del $PHPIZE_DEPS imagemagick-dev \
     && rm -rf /tmp/* /var/cache/apk/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

@@ -93,6 +93,7 @@ return [
         'post_deleted' => 'Siaran dipadamkan',
     ],
     'http_reasons' => [
+        'unknown' => 'Tidak diketahui',
         '200' => 'OK',
         '201' => 'Dicipta',
         '202' => 'Diterima',
@@ -108,7 +109,6 @@ return [
         '502' => 'Get Laluan Tidak Sah',
         '503' => 'Perkhidmatan Tidak Tersedia',
         '504' => 'Masa Tamat Get Laluan',
-        'unknown' => 'Tidak diketahui',
     ],
     'copied' => [
         'id' => 'ID Webhook disalin ke papan keratan',
