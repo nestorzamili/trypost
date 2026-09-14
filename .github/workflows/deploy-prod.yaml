@@ -1,4 +1,4 @@
-name: TryPost Production Pipeline
+name: DCK Auto Post Production
 
 on:
   workflow_dispatch:
@@ -115,7 +115,7 @@ jobs:
           cache-from: type=gha,scope=prod-${{ inputs.platform }}
           cache-to: type=gha,mode=max,scope=prod-${{ inputs.platform }}
           build-args: |
-            VITE_APP_NAME=TryPost
+            VITE_APP_NAME=DCK Auto Post
             VITE_REVERB_APP_KEY=trypost-reverb-key
             VITE_REVERB_HOST=${{ steps.public-host.outputs.host }}
             VITE_REVERB_PORT=443
